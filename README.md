@@ -8,19 +8,7 @@ Python 2.7 or 3.5 and above
 Python and pip should be available in your path
 
 # Installation
-
-## Windows
-`pip install https://github.com/intezer/analyze-cli/archive/master.zip`
-
-**Note**: You might need to restart your command-line session after installing so the command-line will recognize `intezer-analyze` command
-
-## Linux
-```
-sudo pip install https://github.com/intezer/analyze-cli/archive/master.zip
-```
-
-## Mac OS
-`sudo pip install --ignore-installed https://github.com/intezer/analyze-cli/archive/master.zip`
+`pip install intezer-analyze-cli`
 
 # Usage
 
