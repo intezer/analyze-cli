@@ -82,18 +82,6 @@ class CliAnalyzeSpec(CliSpec):
         self.create_analyze_directory_command_mock = create_analyze_analyze_directory_command_patcher.start()
         self.addCleanup(create_analyze_analyze_directory_command_patcher.stop)
 
-    def test_analyze_file_with_anonymize_raise_error(self):
-        # Arrange
-        file_path = __file__
-
-        # Act
-        result = self.runner.invoke(cli.main_cli,
-                                    [cli.analyze.name,
-                                     file_path,
-                                     '--anonymize'])
-        # Assert
-        self.assertEqual(result.exit_code, 1)
-
     def test_analyze_file_with_no_unpacking_and_no_no_static_extraction(self):
         # Arrange
         file_path = __file__
