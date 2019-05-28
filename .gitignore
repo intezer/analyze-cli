@@ -1,0 +1,17 @@
+/logs
+/tests/*/.cache
+/.python_history
+/.bash_history
+.idea/
+venv/
+.venv*/
+/docker-compose.yml
+/cassandra_data
+*.pyc
+/.project
+.config/
+.cache/
+mb.log
+mb1.log
+.tox
+*.egg-info/
