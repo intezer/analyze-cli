@@ -1,10 +1,12 @@
 import os
 import unittest
+from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from click.testing import CliRunner
 from intezer_sdk import errors as sdk_errors
 
+import intezer_analyze_cli.key_store as key_store
 from intezer_analyze_cli import cli
 
 
@@ -67,6 +69,8 @@ class CliAnalyzeSpec(CliSpec):
         self.create_global_api_patcher_mock = create_global_api_patcher.start()
         self.addCleanup(create_global_api_patcher.stop)
 
+        key_store.get_stored_api_key = MagicMock(return_value='api_key')
+
         create_analyze_file_command_patcher = patch('intezer_analyze_cli.commands.analyze_file_command')
         self.create_analyze_file_command_mock = create_analyze_file_command_patcher.start()
         self.addCleanup(create_analyze_file_command_patcher.stop)
@@ -81,13 +85,12 @@ class CliAnalyzeSpec(CliSpec):
         file_path = __file__
 
         # Act
-        with self.runner.isolated_filesystem():
-            result = self.runner.invoke(cli.main_cli,
-                                        [cli.analyze.name,
-                                         file_path,
-                                         '--no-unpacking', '--no-static-extraction'])
+        result = self.runner.invoke(cli.main_cli,
+                                    [cli.analyze.name,
+                                     file_path,
+                                     '--no-unpacking', '--no-static-extraction'])
         # Assert
-        self.assertEqual(result.exit_code, 0)
+        self.assertEqual(result.exit_code, 0, result.exception)
         self.assertTrue(self.create_analyze_file_command_mock.called)
         self.create_analyze_file_command_mock.assert_called_once_with(file_path=file_path,
                                                                       no_unpacking=True,
@@ -98,12 +101,11 @@ class CliAnalyzeSpec(CliSpec):
         file_path = __file__
 
         # Act
-        with self.runner.isolated_filesystem():
-            result = self.runner.invoke(cli.main_cli,
-                                        [cli.analyze.name,
-                                         file_path])
+        result = self.runner.invoke(cli.main_cli,
+                                    [cli.analyze.name,
+                                     file_path])
         # Assert
-        self.assertEqual(result.exit_code, 0)
+        self.assertEqual(result.exit_code, 0, result.exception)
         self.assertTrue(self.create_analyze_file_command_mock.called)
         self.create_analyze_file_command_mock.assert_called_once_with(file_path=file_path,
                                                                       no_unpacking=False,
@@ -114,12 +116,12 @@ class CliAnalyzeSpec(CliSpec):
         directory_path = os.path.dirname(__file__)
 
         # Act
-        with self.runner.isolated_filesystem():
-            result = self.runner.invoke(cli.main_cli,
-                                        [cli.analyze.name,
-                                         directory_path])
+        result = self.runner.invoke(cli.main_cli,
+                                    [cli.analyze.name,
+                                     directory_path])
+
         # Assert
-        self.assertEqual(result.exit_code, 0)
+        self.assertEqual(result.exit_code, 0, result.exception)
         self.assertTrue(self.create_analyze_directory_command_mock.called)
         self.create_analyze_directory_command_mock.assert_called_once_with(path=directory_path,
                                                                            no_unpacking=False,
@@ -133,6 +135,8 @@ class CliIndexSpec(CliSpec):
         create_global_api_patcher = patch('intezer_analyze_cli.cli.create_global_api')
         self.create_global_api_patcher_mock = create_global_api_patcher.start()
         self.addCleanup(create_global_api_patcher.stop)
+
+        key_store.get_stored_api_key = MagicMock(return_value='api_key')
 
         create_index_file_command_patcher = patch('intezer_analyze_cli.commands.index_file_command')
         self.create_index_file_command_mock = create_index_file_command_patcher.start()
@@ -148,7 +152,7 @@ class CliIndexSpec(CliSpec):
                                     [cli.index.name,
                                      file_path, index_as])
         # Assert
-        self.assertEqual(result.exit_code, 0)
+        self.assertEqual(result.exit_code, 0, result.exception)
         self.assertTrue(self.create_global_api_patcher_mock.called)
         self.create_index_file_command_mock.assert_called_once_with(file_path=file_path,
                                                                     index_as=index_as,
@@ -164,5 +168,5 @@ class CliIndexSpec(CliSpec):
                                     [cli.index.name,
                                      file_path, index_as])
         # Assert
-        self.assertEqual(result.exit_code, 1)
+        self.assertEqual(result.exit_code, 1, result.exception)
         self.assertTrue(b'Index type can be trusted or malicious' in result.output_bytes)
