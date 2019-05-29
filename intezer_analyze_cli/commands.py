@@ -37,8 +37,8 @@ def analyze_file_command(file_path, no_unpacking, no_static_unpacking):
 
     try:
         Analysis(file_path=file_path,
-                 dynamic_unpacking=not no_unpacking,
-                 static_unpacking=not no_static_unpacking).send()
+                 dynamic_unpacking=no_unpacking,
+                 static_unpacking=no_static_unpacking).send()
         if default_config.is_cloud:
             click.echo(
                 'Analysis created. In order to check its result, go to: {}'.format(default_config.analyses_url))
@@ -64,8 +64,8 @@ def analyze_directory_command(path, no_unpacking, no_static_unpacking):
                 if utilities.is_supported_file(file_path):
                     try:
                         Analysis(file_path=file_path,
-                                 dynamic_unpacking=not no_unpacking,
-                                 static_unpacking=not no_static_unpacking).send()
+                                 dynamic_unpacking=no_unpacking,
+                                 static_unpacking=no_static_unpacking).send()
                         success_number += 1
                     except sdk_errors.IntezerError:
                         failed_number += 1

@@ -74,8 +74,8 @@ def login(api_key, api_url):
 
 
 @main_cli.command('analyze', short_help='Send a file or a directory for analysis')
-@click.option('--no-unpacking', is_flag=True, default=False, help='Should the analysis skip unpacking')
-@click.option('--no-static-extraction', is_flag=True, default=False, help='Should the analysis skip static extraction')
+@click.option('--no-unpacking', is_flag=True, help='Should the analysis skip unpacking')
+@click.option('--no-static-extraction', is_flag=True, help='Should the analysis skip static extraction')
 @click.argument('path', type=click.Path(exists=True))
 def analyze(path, no_unpacking, no_static_extraction):
     """ Send a file or a directory for analysis in Intezer' Analyze.
@@ -93,6 +93,11 @@ def analyze(path, no_unpacking, no_static_extraction):
     """
     try:
         create_global_api()
+
+        if not no_unpacking:
+            no_unpacking = None
+        if not no_static_extraction:
+            no_static_extraction = None
 
         if os.path.isfile(path):
             commands.analyze_file_command(file_path=path,
