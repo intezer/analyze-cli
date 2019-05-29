@@ -81,10 +81,11 @@ class CliAnalyzeSpec(CliSpec):
         file_path = __file__
 
         # Act
-        result = self.runner.invoke(cli.main_cli,
-                                    [cli.analyze.name,
-                                     file_path,
-                                     '--no-unpacking', '--no-static-extraction'])
+        with self.runner.isolated_filesystem():
+            result = self.runner.invoke(cli.main_cli,
+                                        [cli.analyze.name,
+                                         file_path,
+                                         '--no-unpacking', '--no-static-extraction'])
         # Assert
         self.assertEqual(result.exit_code, 0)
         self.assertTrue(self.create_analyze_file_command_mock.called)
@@ -97,9 +98,10 @@ class CliAnalyzeSpec(CliSpec):
         file_path = __file__
 
         # Act
-        result = self.runner.invoke(cli.main_cli,
-                                    [cli.analyze.name,
-                                     file_path])
+        with self.runner.isolated_filesystem():
+            result = self.runner.invoke(cli.main_cli,
+                                        [cli.analyze.name,
+                                         file_path])
         # Assert
         self.assertEqual(result.exit_code, 0)
         self.assertTrue(self.create_analyze_file_command_mock.called)
@@ -112,9 +114,10 @@ class CliAnalyzeSpec(CliSpec):
         directory_path = os.path.dirname(__file__)
 
         # Act
-        result = self.runner.invoke(cli.main_cli,
-                                    [cli.analyze.name,
-                                     directory_path])
+        with self.runner.isolated_filesystem():
+            result = self.runner.invoke(cli.main_cli,
+                                        [cli.analyze.name,
+                                         directory_path])
         # Assert
         self.assertEqual(result.exit_code, 0)
         self.assertTrue(self.create_analyze_directory_command_mock.called)
