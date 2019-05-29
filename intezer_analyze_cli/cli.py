@@ -40,7 +40,7 @@ def create_global_api():
 
 @click.group(context_settings=dict(help_option_names=['-h', '--help'], max_content_width=120))
 def main_cli():
-    """Intezer Labs Ltd. Code Intelligence client CLI 1.5.6"""
+    """Intezer Labs Ltd. Code Intelligence client CLI 1.5.8"""
     pass
 
 

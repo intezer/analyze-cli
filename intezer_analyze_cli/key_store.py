@@ -13,6 +13,12 @@ def get_key_file_path(key_file_name):
     return os.path.join(os.path.expandvars('%APPDATA%'), config_.key_dir_name, key_file_name)
 
 
+def delete_key(key_file_name):
+    current_key = get_stored_key(key_file_name)
+    if current_key:
+        os.remove(get_key_file_path(key_file_name))
+
+
 def store_key(key, key_file_name):
     current_key = get_stored_key(key_file_name)
     key_file_path = get_key_file_path(key_file_name)
@@ -52,3 +58,7 @@ def store_api_key(key):
 
 def store_default_url(key):
     store_key(key, config_.url_file_name)
+
+
+def delete_default_url():
+    delete_key(config_.url_file_name)

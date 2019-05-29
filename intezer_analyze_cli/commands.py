@@ -12,12 +12,17 @@ from intezer_analyze_cli import utilities
 from intezer_analyze_cli.config import default_config
 
 
-def login(api_key, api_url=default_config.api_url):
+def login(api_key, api_url):
     try:
+        if api_url:
+            key_store.store_default_url(api_url)
+        else:
+            api_url = default_config.api_url
+            key_store.delete_default_url()
+
         api.set_global_api(api_key, default_config.api_version, api_url)
         api.get_global_api().set_session()
         key_store.store_api_key(api_key)
-        key_store.store_default_url(api_url)
         click.echo('You have successfully logged in')
     except sdk_errors.InvalidApiKey:
         click.echo('Invalid API key error, please contact us at support@intezer.com '
@@ -31,10 +36,12 @@ def analyze_file_command(file_path, no_unpacking, no_static_unpacking):
         return
 
     try:
-        Analysis(file_path=file_path, dynamic_unpacking=no_unpacking, static_unpacking=no_static_unpacking).send()
+        Analysis(file_path=file_path,
+                 dynamic_unpacking=not no_unpacking,
+                 static_unpacking=not no_static_unpacking).send()
         if default_config.is_cloud:
             click.echo(
-                'Analysis created. In order to check its result, go to:'.format(default_config.analyses_url))
+                'Analysis created. In order to check its result, go to: {}'.format(default_config.analyses_url))
         else:
             click.echo('Analysis created. In order to check its result go to Intezer analyze history page')
     except sdk_errors.IntezerError as e:
@@ -57,8 +64,8 @@ def analyze_directory_command(path, no_unpacking, no_static_unpacking):
                 if utilities.is_supported_file(file_path):
                     try:
                         Analysis(file_path=file_path,
-                                 dynamic_unpacking=no_unpacking,
-                                 static_unpacking=no_static_unpacking).send()
+                                 dynamic_unpacking=not no_unpacking,
+                                 static_unpacking=not no_static_unpacking).send()
                         success_number += 1
                     except sdk_errors.IntezerError:
                         failed_number += 1

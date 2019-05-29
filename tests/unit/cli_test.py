@@ -1,17 +1,11 @@
 import os
 import unittest
+from unittest.mock import patch
 
-from click._compat import PY2
 from click.testing import CliRunner
 from intezer_sdk import errors as sdk_errors
 
 from intezer_analyze_cli import cli
-
-if PY2:
-    from mock import patch
-
-else:
-    from unittest.mock import patch
 
 
 class CliSpec(unittest.TestCase):

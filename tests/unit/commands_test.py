@@ -1,15 +1,9 @@
 import unittest
+from unittest.mock import patch
 
-from click._compat import PY2
 from click.testing import CliRunner
 
 from intezer_analyze_cli import cli
-
-if PY2:
-    from mock import patch
-
-else:
-    from unittest.mock import patch
 
 
 class CommandsSpec(unittest.TestCase):
