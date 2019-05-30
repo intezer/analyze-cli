@@ -19,7 +19,7 @@ tests_require = [
 
 setup(
     name='intezer-analyze-cli',
-    version='1.5.8',
+    version='1.6.0',
     description='Client library for Intezer cloud service',
     author='Intezer Labs ltd.',
     classifiers=[

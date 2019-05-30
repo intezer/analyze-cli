@@ -108,8 +108,8 @@ class CliAnalyzeSpec(CliSpec):
         self.assertEqual(result.exit_code, 0, result.exception)
         self.assertTrue(self.create_analyze_file_command_mock.called)
         self.create_analyze_file_command_mock.assert_called_once_with(file_path=file_path,
-                                                                      no_unpacking=False,
-                                                                      no_static_unpacking=False)
+                                                                      no_unpacking=None,
+                                                                      no_static_unpacking=None)
 
     def test_analyze_directory(self):
         # Arrange
@@ -124,8 +124,8 @@ class CliAnalyzeSpec(CliSpec):
         self.assertEqual(result.exit_code, 0, result.exception)
         self.assertTrue(self.create_analyze_directory_command_mock.called)
         self.create_analyze_directory_command_mock.assert_called_once_with(path=directory_path,
-                                                                           no_unpacking=False,
-                                                                           no_static_unpacking=False)
+                                                                           no_unpacking=None,
+                                                                           no_static_unpacking=None)
 
 
 class CliIndexSpec(CliSpec):

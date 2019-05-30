@@ -36,12 +36,14 @@ def analyze_file_command(file_path, no_unpacking, no_static_unpacking):
         return
 
     try:
-        Analysis(file_path=file_path,
-                 dynamic_unpacking=no_unpacking,
-                 static_unpacking=no_static_unpacking).send()
+        analysis = Analysis(file_path=file_path,
+                            dynamic_unpacking=no_unpacking,
+                            static_unpacking=no_static_unpacking)
+        analysis.send()
         if default_config.is_cloud:
             click.echo(
-                'Analysis created. In order to check its result, go to: {}'.format(default_config.analyses_url))
+                'Analysis created. In order to check its result, go to: {}/{}'.format(default_config.analyses_url,
+                                                                                      analysis.analyses_id))
         else:
             click.echo('Analysis created. In order to check its result go to Intezer analyze history page')
     except sdk_errors.IntezerError as e:
