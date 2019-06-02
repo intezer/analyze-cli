@@ -109,6 +109,9 @@ def analyze(path, no_unpacking, no_static_extraction):
                                                no_static_unpacking=no_static_extraction)
     except click.Abort:
         raise
+    except sdk_errors.InsufficientQuota:
+        logger.exception('Insufficient quota')
+        click.echo('Insufficient quota, please contact us at support@intezer.com ')
     except Exception:
         logger.exception('Unexpected error occurred')
         click.echo('Unexpected error occurred, please contact us at support@intezer.com '

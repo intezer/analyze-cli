@@ -47,7 +47,7 @@ def analyze_file_command(file_path, no_unpacking, no_static_unpacking):
         else:
             click.echo('Analysis created. In order to check its result go to Intezer analyze history page')
     except sdk_errors.IntezerError as e:
-        click.echo('Index error: {}'.format(e))
+        click.echo('Analyze error: {}'.format(e))
 
 
 def analyze_directory_command(path, no_unpacking, no_static_unpacking):
@@ -69,6 +69,8 @@ def analyze_directory_command(path, no_unpacking, no_static_unpacking):
                                  dynamic_unpacking=no_unpacking,
                                  static_unpacking=no_static_unpacking).send()
                         success_number += 1
+                    except sdk_errors.InsufficientQuota:
+                        raise sdk_errors.InsufficientQuota
                     except sdk_errors.IntezerError:
                         failed_number += 1
                 else:
