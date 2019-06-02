@@ -48,7 +48,7 @@ pipeline {
                 branch "master"
             }
             steps {
-                sh 'docker run --rm -v $(pwd):/code intezer/python-setuptools sh /build-and-upload.sh'
+                sh 'docker run --rm -v $(pwd):/code intezer/python-setuptools sh /build-and-upload-public-pypi.sh'
             }
         }
     }
