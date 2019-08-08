@@ -32,7 +32,7 @@ def login(api_key, api_url):
 
 def analyze_file_command(file_path, no_unpacking, no_static_unpacking):
     if not utilities.is_supported_file(file_path):
-        click.echo('File is not PE, ELF, PDF, DEX or APK')
+        click.echo('File is not PE, ELF, DEX or APK')
         return
 
     try:
@@ -121,7 +121,7 @@ def analyze_by_txt_file_command(path):
 
 def index_file_command(file_path, index_as, family_name=None):
     if not utilities.is_supported_file(file_path):
-        click.echo('File is not PE, ELF, PDF, DEX or APK')
+        click.echo('File is not PE, ELF, DEX or APK')
         return
     try:
         index = Index(index_as=sdk_consts.IndexType.from_str(index_as), file_path=file_path, family_name=family_name)
