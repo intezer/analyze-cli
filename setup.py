@@ -2,18 +2,13 @@ from setuptools import setup
 
 install_requires = [
     'requests==2.22.0',
-    'future==0.16.0',
-    'futures==3.1.1',
     'click==6.7',
     'tenacity==5.0.3',
     'pyjwt==1.6.1',
-    'intezer-sdk==0.11'
+    'intezer-sdk==0.13'
 ]
 tests_require = [
-    'mock==2.0.0',
-    'backports.tempfile==1.0',
     'pytest==3.1.2',
-    'unittest2==1.1.0',
     'responses==0.10.4'
 ]
 
