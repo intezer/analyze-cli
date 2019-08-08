@@ -5,7 +5,7 @@ install_requires = [
     'click==6.7',
     'tenacity==5.0.3',
     'pyjwt==1.6.1',
-    'intezer-sdk==0.13'
+    'intezer-sdk==0.11'
 ]
 tests_require = [
     'pytest==3.1.2',
