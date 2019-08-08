@@ -5,7 +5,7 @@ install_requires = [
     'click==6.7',
     'tenacity==5.0.3',
     'pyjwt==1.6.1',
-    'intezer-sdk==0.11'
+    'intezer-sdk==0.14'
 ]
 tests_require = [
     'pytest==3.1.2',
@@ -14,7 +14,7 @@ tests_require = [
 
 setup(
     name='intezer-analyze-cli',
-    version='1.6.2',
+    version='1.6.3',
     description='Client library for Intezer cloud service',
     author='Intezer Labs ltd.',
     classifiers=[
