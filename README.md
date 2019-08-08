@@ -16,6 +16,10 @@ Python and pip should be available in your path
 To begin using the cli, first you should login with your Intezer Analyze CLI:
 
 `intezer-analyze login <api_key>`
+
+If you are running the CLI against an on premise deployment, enter the url:
+
+`intezer-analyze login <api_key> http://<address>/api`
  
 
 ## Analyze
