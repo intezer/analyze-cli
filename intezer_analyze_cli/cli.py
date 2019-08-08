@@ -44,7 +44,6 @@ def main_cli():
     pass
 
 
-# noinspection PyUnusedLocal
 @main_cli.command('login', short_help='Login to Code Intelligence')
 @click.argument('api_key', type=click.UUID)
 @click.argument('api_url', required=False, default=None, type=click.STRING)
@@ -55,7 +54,7 @@ def login(api_key, api_url):
     API_KEY: API key or invite code for Intezer's Code Intelligence cloud service.
 
     \b
-    API_URL: API URL.
+    API_URL: Intezer analyze url in case you have on premise deployment.
 
     \b
     Example:

@@ -106,7 +106,7 @@ def is_supported_file(file_path):
     try:
         with open(file_path, 'rb') as f:
             byte = f.read(4)
-            is_supported = byte[:2] == b'MZ' or byte == b'\x7fELF' or byte == b'%PDF' or byte == b'dex\x0a'
+            is_supported = byte[:2] == b'MZ' or byte == b'\x7fELF' or byte == b'dex\x0a'
     except IOError:
         logging.info('No read permissions for file', extra=dict(file_path=file_path))
         return False
