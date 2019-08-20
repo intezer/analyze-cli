@@ -13,7 +13,6 @@ class AnalysisErrorType(enum.Enum):
     CLOUD_SERVICE_NOT_AVAILABLE = 'intezer cloud could not be reached'
     FILE_TOO_LARGE = 'file is too large, the maximum file size is 20MB'
     QUOTA_EXCEEDED = 'quota limit exceeded. Contact us for more quota'
-    ANONYMIZE_ERROR = 'file could not be anonymized'
     GENERAL_ERROR = 'general error on creating analysis'
 
 

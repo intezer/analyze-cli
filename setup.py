@@ -9,12 +9,12 @@ install_requires = [
 ]
 tests_require = [
     'pytest==3.1.2',
-    'responses==0.10.4'
+    'responses==0.10.6'
 ]
 
 setup(
     name='intezer-analyze-cli',
-    version='1.6.3',
+    version='1.6.4',
     description='Client library for Intezer cloud service',
     author='Intezer Labs ltd.',
     classifiers=[

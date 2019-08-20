@@ -130,8 +130,7 @@ def is_apk(file_path):
 
 def print_contact_us_if_needed(errors):
     if any(x in errors for x in (AnalysisErrorType.GENERAL_ERROR,
-                                 AnalysisErrorType.ANALYSIS_CREATION_ERROR,
-                                 AnalysisErrorType.ANONYMIZE_ERROR)):
+                                 AnalysisErrorType.ANALYSIS_CREATION_ERROR)):
         print('Please contact us at support@intezer.com and attach the log file in {}'.format(
             log_file_path))
 

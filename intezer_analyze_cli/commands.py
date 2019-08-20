@@ -43,7 +43,7 @@ def analyze_file_command(file_path, no_unpacking, no_static_unpacking):
         if default_config.is_cloud:
             click.echo(
                 'Analysis created. In order to check its result, go to: {}/{}'.format(default_config.analyses_url,
-                                                                                      analysis.analyses_id))
+                                                                                      analysis.analysis_id))
         else:
             click.echo('Analysis created. In order to check its result go to Intezer analyze history page')
     except sdk_errors.IntezerError as e:
