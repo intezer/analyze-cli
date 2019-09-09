@@ -29,7 +29,7 @@ def store_key(key, key_file_name):
     if not os.path.exists(os.path.dirname(key_file_path)):
         os.makedirs(os.path.dirname(key_file_path))
 
-    with open(key_file_path, "w") as f:
+    with open(key_file_path, 'w') as f:
         f.write(key)
     logger.info('Key stored')
 
