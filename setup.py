@@ -18,14 +18,11 @@ with open(rel('intezer_analyze_cli', '__init__.py'), 'r') as f:
         raise RuntimeError('Version marker not found.')
 
 install_requires = [
-    'requests==2.22.0',
     'click==6.7',
-    'tenacity==5.0.3',
-    'pyjwt==1.6.1',
     'intezer-sdk==0.14'
 ]
 tests_require = [
-    'pytest==3.1.2',
+    'pytest==3.6.4',
     'responses==0.10.6'
 ]
 
