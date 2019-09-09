@@ -1,4 +1,21 @@
+import os
+
 from setuptools import setup
+
+
+def rel(*xs):
+    return os.path.join(os.path.abspath(os.path.dirname(__file__)), *xs)
+
+
+with open(rel('intezer_analyze_cli', '__init__.py'), 'r') as f:
+    version_marker = '__version__ = '
+    for line in f:
+        if line.startswith(version_marker):
+            _, version = line.split(version_marker)
+            version = version.strip().strip("'")
+            break
+    else:
+        raise RuntimeError('Version marker not found.')
 
 install_requires = [
     'requests==2.22.0',
@@ -14,7 +31,7 @@ tests_require = [
 
 setup(
     name='intezer-analyze-cli',
-    version='1.6.4',
+    version=version,
     description='Client library for Intezer cloud service',
     author='Intezer Labs ltd.',
     classifiers=[

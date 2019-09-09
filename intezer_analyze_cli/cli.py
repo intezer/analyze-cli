@@ -6,6 +6,7 @@ from intezer_sdk import api
 from intezer_sdk import consts as sdk_consts
 from intezer_sdk import errors as sdk_errors
 
+from intezer_analyze_cli import __version__
 from intezer_analyze_cli import commands
 from intezer_analyze_cli import key_store
 from intezer_analyze_cli import utilities
@@ -30,6 +31,7 @@ def create_global_api():
             default_config.is_cloud = False
 
         api.set_global_api(api_key, default_config.api_version, default_config.api_url)
+        sdk_consts.USER_AGENT += '/CLI-{}'.format(__version__)
 
     except sdk_errors.InvalidApiKey:
         logger.exception('Invalid api key error')
@@ -38,9 +40,9 @@ def create_global_api():
         raise click.Abort()
 
 
-@click.group(context_settings=dict(help_option_names=['-h', '--help'], max_content_width=120))
+@click.group(context_settings=dict(help_option_names=['-h', '--help'], max_content_width=120),
+             help='Intezer Labs Ltd. Intezer Analyze CLI {}'.format(__version__))
 def main_cli():
-    """Intezer Labs Ltd. Code Intelligence client CLI 1.5.8"""
     pass
 
 
