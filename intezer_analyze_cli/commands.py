@@ -45,7 +45,7 @@ def analyze_file_command(file_path, no_unpacking, no_static_unpacking):
                 'Analysis created. In order to check its result, go to: {}/{}'.format(default_config.analyses_url,
                                                                                       analysis.analysis_id))
         else:
-            click.echo('Analysis created. In order to check its result go to Intezer analyze history page')
+            click.echo('Analysis created. In order to check its result go to Intezer Analyze history page')
     except sdk_errors.IntezerError as e:
         click.echo('Analyze error: {}'.format(e))
 
@@ -83,7 +83,7 @@ def analyze_directory_command(path, no_unpacking, no_static_unpacking):
                                                                                                 default_config.analyses_url))
         else:
             click.echo('{} analysis created. In order to check their results '
-                       'go to Intezer analyze history page'.format(success_number))
+                       'go to Intezer Analyze history page'.format(success_number))
 
     if failed_number != 0:
         click.echo('{} analysis failed'.format(failed_number))
@@ -113,7 +113,7 @@ def analyze_by_txt_file_command(path):
                            .format(default_config.analyses_url))
             else:
                 click.echo(
-                    'analysis created. In order to check their results go to Intezer analyze history page')
+                    'analysis created. In order to check their results go to Intezer Analyze history page')
     except IOError:
         click.echo('No read permissions for {}'.format(path))
         click.Abort()

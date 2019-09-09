@@ -46,17 +46,17 @@ def main_cli():
     pass
 
 
-@main_cli.command('login', short_help='Login to Code Intelligence')
+@main_cli.command('login', short_help='Login to Intezer Analyze')
 @click.argument('api_key', type=click.UUID)
 @click.argument('api_url', required=False, default=None, type=click.STRING)
 def login(api_key, api_url):
     """Login to Intezer Analyze to perform analyses.
 
     \b
-    API_KEY: API key or invite code for Intezer's Code Intelligence cloud service.
+    API_KEY: API key or invite code for Intezer Analyze.
 
     \b
-    API_URL: Intezer analyze url in case you have on premise deployment.
+    API_URL: Intezer Analyze URL in case you have on premise deployment.
 
     \b
     Example:
@@ -79,7 +79,7 @@ def login(api_key, api_url):
 @click.option('--no-static-extraction', is_flag=True, help='Should the analysis skip static extraction')
 @click.argument('path', type=click.Path(exists=True))
 def analyze(path, no_unpacking, no_static_extraction):
-    """ Send a file or a directory for analysis in Intezer' Analyze.
+    """ Send a file or a directory for analysis in Intezer Analyze.
 
     \b
     PATH: Path to file or directory to send the files inside for analysis.
@@ -122,7 +122,7 @@ def analyze(path, no_unpacking, no_static_extraction):
 @main_cli.command('analyze_by_list', short_help='Send a text file with list of hashes')
 @click.argument('path', type=click.Path(exists=True))
 def analyze_by_list(path):
-    """ Send a text file with hashes for analysis in Intezer' Analyze.
+    """ Send a text file with hashes for analysis in Intezer Analyze.
 
     \b
     PATH: Path to txt file.
