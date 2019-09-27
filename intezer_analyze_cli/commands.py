@@ -1,3 +1,4 @@
+import logging
 import os
 
 import click
@@ -10,6 +11,8 @@ from intezer_sdk.index import Index
 from intezer_analyze_cli import key_store
 from intezer_analyze_cli import utilities
 from intezer_analyze_cli.config import default_config
+
+logger = logging.getLogger('intezer_client')
 
 
 def login(api_key, api_url):
@@ -63,18 +66,22 @@ def analyze_directory_command(path, no_unpacking, no_static_unpacking):
                                show_pos=True) as progressbar:
             for file_name in files:
                 file_path = os.path.join(root, file_name)
-                if utilities.is_supported_file(file_path):
+                if not utilities.is_supported_file(file_path):
+                    unsupported_number += 1
+                else:
                     try:
                         Analysis(file_path=file_path,
                                  dynamic_unpacking=no_unpacking,
                                  static_unpacking=no_static_unpacking).send()
                         success_number += 1
-                    except sdk_errors.InsufficientQuota:
-                        raise sdk_errors.InsufficientQuota
-                    except sdk_errors.IntezerError:
+                    except sdk_errors.IntezerError as ex:
+                        # We cannot continue analyzing the directory if the account is out of quota
+                        if isinstance(ex, sdk_errors.InsufficientQuota):
+                            raise
+
+                        logger.exception('Error while analyzing directory')
                         failed_number += 1
-                else:
-                    unsupported_number += 1
+
                 progressbar.update(1)
 
     if success_number != 0:
