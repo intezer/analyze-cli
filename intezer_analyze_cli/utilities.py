@@ -145,11 +145,8 @@ def check_should_continue_for_large_dir(num_of_items, threshold):
     if num_of_items <= threshold:
         return
 
-    should_continue = click.confirm(
-        'This directory contains more than {} files, are you sure you want to continue?'.format(threshold))
-
-    if not should_continue:
-        click.Abort()
+    click.confirm('This directory contains more than {} files, are you sure you want to continue?'.format(threshold),
+                  abort=True)
 
 
 def indexes_list_to_csv(csv_path, indexes_list):
