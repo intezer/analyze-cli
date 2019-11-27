@@ -1,2 +1,2 @@
-FROM themattrix/tox
+FROM themattrix/tox:latest@sha256:c61f9a68dba648e8196d2ff107335f51e67c3ef417b45a7e4f91a87c8b3e5aac
 ENV PYTHONDONTWRITEBYTECODE 1
