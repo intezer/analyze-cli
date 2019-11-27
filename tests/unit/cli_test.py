@@ -93,8 +93,9 @@ class CliAnalyzeSpec(CliSpec):
         self.assertEqual(result.exit_code, 0, result.exception)
         self.assertTrue(self.create_analyze_file_command_mock.called)
         self.create_analyze_file_command_mock.assert_called_once_with(file_path=file_path,
-                                                                      no_unpacking=True,
-                                                                      no_static_unpacking=True)
+                                                                      disable_dynamic_unpacking=True,
+                                                                      disable_static_unpacking=True,
+                                                                      code_item_type=None)
 
     def test_analyze_file(self):
         # Arrange
@@ -108,8 +109,25 @@ class CliAnalyzeSpec(CliSpec):
         self.assertEqual(result.exit_code, 0, result.exception)
         self.assertTrue(self.create_analyze_file_command_mock.called)
         self.create_analyze_file_command_mock.assert_called_once_with(file_path=file_path,
-                                                                      no_unpacking=None,
-                                                                      no_static_unpacking=None)
+                                                                      disable_dynamic_unpacking=None,
+                                                                      disable_static_unpacking=None,
+                                                                      code_item_type=None)
+    def test_analyze_memory_module(self):
+        # Arrange
+        file_path = __file__
+
+        # Act
+        result = self.runner.invoke(cli.main_cli,
+                                    [cli.analyze.name,
+                                     '--code-item-type=file',
+                                     file_path])
+        # Assert
+        self.assertEqual(result.exit_code, 0, result.exception)
+        self.assertTrue(self.create_analyze_file_command_mock.called)
+        self.create_analyze_file_command_mock.assert_called_once_with(file_path=file_path,
+                                                                      disable_dynamic_unpacking=None,
+                                                                      disable_static_unpacking=None,
+                                                                      code_item_type='file')
 
     def test_analyze_directory(self):
         # Arrange
@@ -124,8 +142,9 @@ class CliAnalyzeSpec(CliSpec):
         self.assertEqual(result.exit_code, 0, result.exception)
         self.assertTrue(self.create_analyze_directory_command_mock.called)
         self.create_analyze_directory_command_mock.assert_called_once_with(path=directory_path,
-                                                                           no_unpacking=None,
-                                                                           no_static_unpacking=None)
+                                                                           disable_dynamic_unpacking=None,
+                                                                           disable_static_unpacking=None,
+                                                                           code_item_type=None)
 
 
 class CliIndexSpec(CliSpec):

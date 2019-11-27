@@ -15,7 +15,7 @@ from intezer_analyze_cli.config import default_config
 logger = logging.getLogger('intezer_client')
 
 
-def login(api_key, api_url):
+def login(api_key: str, api_url: str):
     try:
         if api_url:
             key_store.store_default_url(api_url)
@@ -33,15 +33,19 @@ def login(api_key, api_url):
         raise click.Abort()
 
 
-def analyze_file_command(file_path, no_unpacking, no_static_unpacking):
+def analyze_file_command(file_path: str,
+                         disable_dynamic_unpacking: bool,
+                         disable_static_unpacking: bool,
+                         code_item_type: str):
     if not utilities.is_supported_file(file_path):
         click.echo('File is not PE, ELF, DEX or APK')
         return
 
     try:
         analysis = Analysis(file_path=file_path,
-                            dynamic_unpacking=no_unpacking,
-                            static_unpacking=no_static_unpacking)
+                            code_item_type=code_item_type,
+                            disable_dynamic_unpacking=disable_dynamic_unpacking,
+                            disable_static_unpacking=disable_static_unpacking)
         analysis.send()
         if default_config.is_cloud:
             click.echo(
@@ -53,7 +57,10 @@ def analyze_file_command(file_path, no_unpacking, no_static_unpacking):
         click.echo('Analyze error: {}'.format(e))
 
 
-def analyze_directory_command(path, no_unpacking, no_static_unpacking):
+def analyze_directory_command(path: str,
+                              disable_dynamic_unpacking: bool,
+                              disable_static_unpacking: bool,
+                              code_item_type: str):
     success_number = 0
     failed_number = 0
     unsupported_number = 0
@@ -71,8 +78,9 @@ def analyze_directory_command(path, no_unpacking, no_static_unpacking):
                 else:
                     try:
                         Analysis(file_path=file_path,
-                                 dynamic_unpacking=no_unpacking,
-                                 static_unpacking=no_static_unpacking).send()
+                                 code_item_type=code_item_type,
+                                 disable_dynamic_unpacking=disable_dynamic_unpacking,
+                                 disable_static_unpacking=disable_static_unpacking).send()
                         success_number += 1
                     except sdk_errors.IntezerError as ex:
                         # We cannot continue analyzing the directory if the account is out of quota
@@ -99,7 +107,7 @@ def analyze_directory_command(path, no_unpacking, no_static_unpacking):
         click.echo('{} unsupported files'.format(unsupported_number))
 
 
-def analyze_by_txt_file_command(path):
+def analyze_by_txt_file_command(path: str):
     try:
         hashes = [line.rstrip('\n') for line in open(path)]
         with click.progressbar(length=len(hashes),
