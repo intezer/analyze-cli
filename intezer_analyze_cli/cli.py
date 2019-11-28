@@ -5,6 +5,7 @@ import click
 from intezer_sdk import api
 from intezer_sdk import consts as sdk_consts
 from intezer_sdk import errors as sdk_errors
+from intezer_sdk.consts import CodeItemType
 
 from intezer_analyze_cli import __version__
 from intezer_analyze_cli import commands
@@ -49,7 +50,7 @@ def main_cli():
 @main_cli.command('login', short_help='Login to Intezer Analyze')
 @click.argument('api_key', type=click.UUID)
 @click.argument('api_url', required=False, default=None, type=click.STRING)
-def login(api_key, api_url):
+def login(api_key: str, api_url: str):
     """Login to Intezer Analyze to perform analyses.
 
     \b
@@ -77,8 +78,10 @@ def login(api_key, api_url):
 @main_cli.command('analyze', short_help='Send a file or a directory for analysis')
 @click.option('--no-unpacking', is_flag=True, help='Should the analysis skip unpacking')
 @click.option('--no-static-extraction', is_flag=True, help='Should the analysis skip static extraction')
+@click.option('--code-item-type', type=click.Choice([c.value for c in CodeItemType]), default=None,
+              help='The type of the binary file uploaded')
 @click.argument('path', type=click.Path(exists=True))
-def analyze(path, no_unpacking, no_static_extraction):
+def analyze(path: str, no_unpacking: bool, no_static_extraction: bool, code_item_type: str):
     """ Send a file or a directory for analysis in Intezer Analyze.
 
     \b
@@ -102,12 +105,14 @@ def analyze(path, no_unpacking, no_static_extraction):
 
         if os.path.isfile(path):
             commands.analyze_file_command(file_path=path,
-                                          no_unpacking=no_unpacking,
-                                          no_static_unpacking=no_static_extraction)
+                                          disable_dynamic_unpacking=no_unpacking,
+                                          disable_static_unpacking=no_static_extraction,
+                                          code_item_type=code_item_type)
         else:
             commands.analyze_directory_command(path=path,
-                                               no_unpacking=no_unpacking,
-                                               no_static_unpacking=no_static_extraction)
+                                               disable_dynamic_unpacking=no_unpacking,
+                                               disable_static_unpacking=no_static_extraction,
+                                               code_item_type=code_item_type)
     except click.Abort:
         raise
     except sdk_errors.InsufficientQuota:
