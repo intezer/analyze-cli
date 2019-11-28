@@ -5,6 +5,7 @@ import click
 from intezer_sdk import api
 from intezer_sdk import consts as sdk_consts
 from intezer_sdk import errors as sdk_errors
+from intezer_sdk.consts import CodeItemType
 
 from intezer_analyze_cli import __version__
 from intezer_analyze_cli import commands
@@ -77,7 +78,7 @@ def login(api_key: str, api_url: str):
 @main_cli.command('analyze', short_help='Send a file or a directory for analysis')
 @click.option('--no-unpacking', is_flag=True, help='Should the analysis skip unpacking')
 @click.option('--no-static-extraction', is_flag=True, help='Should the analysis skip static extraction')
-@click.option('--code-item-type', type=click.Choice(['file', 'memory_module']), default=None,
+@click.option('--code-item-type', type=click.Choice([c.value for c in CodeItemType]), default=None,
               help='The type of the binary file uploaded')
 @click.argument('path', type=click.Path(exists=True))
 def analyze(path: str, no_unpacking: bool, no_static_extraction: bool, code_item_type: str):
