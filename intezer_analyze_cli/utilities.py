@@ -105,13 +105,13 @@ def init_log(logger_name, debug_mode=False):
 def is_supported_file(file_path):
     try:
         with open(file_path, 'rb') as f:
-            byte = f.read(5)
+            byte = f.read(6)
             is_supported = (byte[:2] == b'MZ' or  # PE
                             byte[:4] == b'\x7fELF' or  # ELF
                             byte[:4] == b'dex\x0a' or  # Dex
                             byte[:4] == b'\x50\x4b\x03\x04' or  # Zip
                             byte[:3] == b'\x1f\x8b\x08' or  # Zip
-                            byte[:5] == b'\x37\x7A\xBC\xAF\x27\x1C')  # 7-Zip
+                            byte[:6] == b'\x37\x7a\xbc\xaf\x27\x1c')  # 7-Zip
     except IOError:
         logging.info('No read permissions for file', extra=dict(file_path=file_path))
         return False
@@ -174,3 +174,7 @@ def export_to_csv(csv_file_path, items, keys=None):
         dict_writer = csv.DictWriter(output_file, sorted_keys)
         dict_writer.writeheader()
         dict_writer.writerows(items)
+
+
+if __name__ == '__main__':
+    is_supported_file('/home/david/Downloads/lsass_pe.7z')
