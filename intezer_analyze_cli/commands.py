@@ -85,10 +85,15 @@ def analyze_directory_command(path: str,
                     except sdk_errors.IntezerError as ex:
                         # We cannot continue analyzing the directory if the account is out of quota
                         if isinstance(ex, sdk_errors.InsufficientQuota):
+                            logger.error('Failed to analyze %s', file_path)
                             raise
 
                         logger.exception('Error while analyzing directory')
                         failed_number += 1
+                    except Exception:
+                        logger.error('Failed to analyze %s', file_path)
+                        raise
+
 
                 progressbar.update(1)
 
