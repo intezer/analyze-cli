@@ -64,8 +64,11 @@ def login(api_key: str, api_url: str):
       $ intezer-analyze login edb45d954da54e8e980078001d8921cc
     """
     try:
-        if api_url and api_url[len(api_url) - 1] != '/':
-            api_url = api_url + '/'
+        if api_url:
+            if api_url[-1] != '/':
+                api_url += '/'
+            if not api_url.endswith('/api/'):
+                api_url += 'api/'
         commands.login(str(api_key), api_url)
     except click.Abort:
         raise

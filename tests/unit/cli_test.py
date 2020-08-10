@@ -17,9 +17,6 @@ class CliSpec(unittest.TestCase):
 
 
 class CliLoginSpec(CliSpec):
-    def setUp(self):
-        super(CliLoginSpec, self).setUp()
-
     def test_login_succeeded(self):
         # Arrange
         api_key = '123e4567-e89b-12d3-a456-426655440000'
@@ -30,6 +27,22 @@ class CliLoginSpec(CliSpec):
                                         [cli.login.name,
                                          api_key])
         # Assert
+        self.assertEqual(result.exit_code, 0)
+
+    def test_login_succeeded_with_url(self):
+        # Arrange
+        api_key = '123e4567-e89b-12d3-a456-426655440000'
+        analyze_url = 'http://127.0.0.1'
+
+        # Act
+        with patch('intezer_analyze_cli.commands.login') as mock:
+            result = self.runner.invoke(cli.main_cli,
+                                        [cli.login.name,
+                                         api_key,
+                                         analyze_url])
+            # Assert
+            mock.assert_called_once_with(api_key, analyze_url + '/api/')
+
         self.assertEqual(result.exit_code, 0)
 
     def test_login_invalid_key(self):
@@ -112,6 +125,7 @@ class CliAnalyzeSpec(CliSpec):
                                                                       disable_dynamic_unpacking=None,
                                                                       disable_static_unpacking=None,
                                                                       code_item_type=None)
+
     def test_analyze_memory_module(self):
         # Arrange
         file_path = __file__

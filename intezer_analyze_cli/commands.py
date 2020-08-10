@@ -68,6 +68,9 @@ def analyze_directory_command(path: str,
     for root, dirs, files in os.walk(path):
         number_of_files = len(files)
         utilities.check_should_continue_for_large_dir(number_of_files, default_config.unusual_amount_in_dir)
+        if not files:
+            continue
+
         with click.progressbar(length=number_of_files,
                                label='Sending files for analysis',
                                show_pos=True) as progressbar:
@@ -93,7 +96,6 @@ def analyze_directory_command(path: str,
                     except Exception:
                         logger.error('Failed to analyze %s', file_path)
                         raise
-
 
                 progressbar.update(1)
 
