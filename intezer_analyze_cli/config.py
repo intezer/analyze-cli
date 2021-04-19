@@ -8,9 +8,6 @@ class Config(object):
         self.api_version = 'v2-0'
         self.analyses_url = 'https://analyze.intezer.com/#/analyses'
 
-        # Cloud Service
-        self.max_upload_file_size = 20 * 1024 * 1024
-
         # Key Store
         self.key_dir_name = '.intezer'
         self.key_file_name = 'key'

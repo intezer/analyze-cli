@@ -7,26 +7,7 @@ import zipfile
 
 import click
 
-from intezer_analyze_cli.data_types import AnalysisErrorType
-
 log_file_path = ''
-
-
-def hash_sha256_file(path):
-    """
-    Performs sha256 hash on the file in the received path, and returns the result as an hex string
-    :param path: path of the file to perform the hash on
-    :return: sha256 hex string
-    """
-    block_size = 65536
-    hasher = hashlib.sha256()
-    with open(path, 'rb') as _file:
-        buf = _file.read(block_size)
-        while len(buf) > 0:
-            hasher.update(buf)
-            buf = _file.read(block_size)
-
-        return str(hasher.hexdigest())
 
 
 def get_log_record_extra_fields(record):
@@ -131,13 +112,6 @@ def is_apk(file_path):
     except (OSError, zipfile.BadZipFile):
         logging.info('Error bad zip file')
         return False
-
-
-def print_contact_us_if_needed(errors):
-    if any(x in errors for x in (AnalysisErrorType.GENERAL_ERROR,
-                                 AnalysisErrorType.ANALYSIS_CREATION_ERROR)):
-        print('Please contact us at support@intezer.com and attach the log file in {}'.format(
-            log_file_path))
 
 
 def check_should_continue_for_large_dir(num_of_items, threshold):
