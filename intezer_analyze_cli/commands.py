@@ -1,5 +1,6 @@
 import logging
 import os
+from typing import Optional
 
 import click
 from intezer_sdk import api
@@ -60,14 +61,16 @@ def analyze_file_command(file_path: str,
 def analyze_directory_command(path: str,
                               disable_dynamic_unpacking: bool,
                               disable_static_unpacking: bool,
-                              code_item_type: str):
+                              code_item_type: str,
+                              ignore_directory_size: bool):
     success_number = 0
     failed_number = 0
     unsupported_number = 0
 
     for root, dirs, files in os.walk(path):
         number_of_files = len(files)
-        utilities.check_should_continue_for_large_dir(number_of_files, default_config.unusual_amount_in_dir)
+        if not ignore_directory_size:
+            utilities.check_should_continue_for_large_dir(number_of_files, default_config.unusual_amount_in_dir)
         if not files:
             continue
 
@@ -101,8 +104,10 @@ def analyze_directory_command(path: str,
 
     if success_number != 0:
         if default_config.is_cloud:
-            click.echo('{} analysis created. In order to check their results, go to: {}'.format(success_number,
-                                                                                                default_config.analyses_url))
+            click.echo('{} analysis created. In order to check their results, go to: {}'.format(
+                success_number,
+                default_config.analyses_url)
+            )
         else:
             click.echo('{} analysis created. In order to check their results '
                        'go to Intezer Analyze history page'.format(success_number))
@@ -141,7 +146,7 @@ def analyze_by_txt_file_command(path: str):
         click.Abort()
 
 
-def index_file_command(file_path, index_as, family_name=None):
+def index_file_command(file_path: str, index_as: str, family_name: Optional[str]):
     if not utilities.is_supported_file(file_path):
         click.echo('File is not PE, ELF, DEX or APK')
         return
@@ -153,12 +158,16 @@ def index_file_command(file_path, index_as, family_name=None):
         click.echo('Index error: {}'.format(e))
 
 
-def index_directory_command(directory_path, index_as, family_name=None):
+def index_directory_command(directory_path: str,
+                            index_as: str,
+                            family_name: Optional[str],
+                            ignore_directory_size: bool):
     indexes_results = []
 
     for root, dirs, files in os.walk(directory_path):
         number_of_files = len(files)
-        utilities.check_should_continue_for_large_dir(number_of_files, default_config.unusual_amount_in_dir)
+        if not ignore_directory_size:
+            utilities.check_should_continue_for_large_dir(number_of_files, default_config.unusual_amount_in_dir)
         with click.progressbar(length=number_of_files,
                                label='Index files',
                                show_pos=True,
