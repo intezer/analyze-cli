@@ -62,14 +62,14 @@ def analyze_directory_command(path: str,
                               disable_dynamic_unpacking: bool,
                               disable_static_unpacking: bool,
                               code_item_type: str,
-                              ignore_directory_size: bool):
+                              ignore_directory_count_limit: bool):
     success_number = 0
     failed_number = 0
     unsupported_number = 0
 
     for root, dirs, files in os.walk(path):
         number_of_files = len(files)
-        if not ignore_directory_size:
+        if not ignore_directory_count_limit:
             utilities.check_should_continue_for_large_dir(number_of_files, default_config.unusual_amount_in_dir)
         if not files:
             continue
@@ -161,12 +161,12 @@ def index_file_command(file_path: str, index_as: str, family_name: Optional[str]
 def index_directory_command(directory_path: str,
                             index_as: str,
                             family_name: Optional[str],
-                            ignore_directory_size: bool):
+                            ignore_directory_count_limit: bool):
     indexes_results = []
 
     for root, dirs, files in os.walk(directory_path):
         number_of_files = len(files)
-        if not ignore_directory_size:
+        if not ignore_directory_count_limit:
             utilities.check_should_continue_for_large_dir(number_of_files, default_config.unusual_amount_in_dir)
         with click.progressbar(length=number_of_files,
                                label='Index files',

@@ -83,13 +83,15 @@ def login(api_key: str, api_url: str):
 @click.option('--no-static-extraction', is_flag=True, help='Should the analysis skip static extraction')
 @click.option('--code-item-type', type=click.Choice([c.value for c in CodeItemType]), default=None,
               help='The type of the binary file uploaded')
-@click.option('--ignore-directory-size', is_flag=True, help='ignore directory size limit')
+@click.option('--ignore-directory-count-limit',
+              is_flag=True,
+              help='ignore directory count limit ({} files)'.format(default_config.unusual_amount_in_dir))
 @click.argument('path', type=click.Path(exists=True))
 def analyze(path: str,
             no_unpacking: bool,
             no_static_extraction: bool,
             code_item_type: str,
-            ignore_directory_size: bool):
+            ignore_directory_count_limit: bool):
     """ Send a file or a directory for analysis in Intezer Analyze.
 
     \b
@@ -121,7 +123,7 @@ def analyze(path: str,
                                                disable_dynamic_unpacking=no_unpacking,
                                                disable_static_unpacking=no_static_extraction,
                                                code_item_type=code_item_type,
-                                               ignore_directory_size=ignore_directory_size)
+                                               ignore_directory_count_limit=ignore_directory_count_limit)
     except click.Abort:
         raise
     except sdk_errors.InsufficientQuota:
@@ -163,8 +165,10 @@ def analyze_by_list(path):
 @click.argument('path', type=click.Path(exists=True))
 @click.argument('index_as', type=click.STRING)
 @click.argument('family_name', required=False, type=click.STRING, default=None)
-@click.option('--ignore-directory-size', is_flag=True, help='ignore directory size limit')
-def index(path: str, index_as: str, family_name: str, ignore_directory_size: bool):
+@click.option('--ignore-directory-count-limit',
+              is_flag=True,
+              help='ignore directory count limit ({} files)'.format(default_config.unusual_amount_in_dir))
+def index(path: str, index_as: str, family_name: str, ignore_directory_count_limit: bool):
     """ Send a file or a directory for indexing
 
     \b
@@ -193,7 +197,7 @@ def index(path: str, index_as: str, family_name: str, ignore_directory_size: boo
             commands.index_directory_command(directory_path=path,
                                              index_as=index_as,
                                              family_name=family_name,
-                                             ignore_directory_size=ignore_directory_size)
+                                             ignore_directory_count_limit=ignore_directory_count_limit)
     except click.Abort:
         raise
     except NotImplementedError:

@@ -145,7 +145,7 @@ class CliAnalyzeSpec(CliSpec):
                                                                       disable_dynamic_unpacking=None,
                                                                       disable_static_unpacking=None,
                                                                       code_item_type=None,
-                                                                      ignore_directory_size=False)
+                                                                      ignore_directory_count_limit=False)
 
 
 class CliIndexSpec(CliSpec):
@@ -187,7 +187,7 @@ class CliIndexSpec(CliSpec):
         create_index_directory_command_mock.assert_called_once_with(directory_path=directory_path,
                                                                     index_as=index_as,
                                                                     family_name=None,
-                                                                    ignore_directory_size=False)
+                                                                    ignore_directory_count_limit=False)
 
     def test_index_file_with_wrong_index_name_raise_error(self):
         # Arrange
