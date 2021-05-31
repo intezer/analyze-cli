@@ -38,7 +38,7 @@ def analyze_file_command(file_path: str,
                          disable_dynamic_unpacking: bool,
                          disable_static_unpacking: bool,
                          code_item_type: str):
-    if not utilities.is_supported_file(file_path):
+    if not utilities.is_supported_file(file_path) and disable_dynamic_unpacking:
         click.echo('File is not PE, ELF, DEX or APK')
         return
 
@@ -79,7 +79,7 @@ def analyze_directory_command(path: str,
                                show_pos=True) as progressbar:
             for file_name in files:
                 file_path = os.path.join(root, file_name)
-                if not utilities.is_supported_file(file_path):
+                if not utilities.is_supported_file(file_path) and disable_dynamic_unpacking:
                     unsupported_number += 1
                 else:
                     try:
@@ -147,9 +147,6 @@ def analyze_by_txt_file_command(path: str):
 
 
 def index_file_command(file_path: str, index_as: str, family_name: Optional[str]):
-    if not utilities.is_supported_file(file_path):
-        click.echo('File is not PE, ELF, DEX or APK')
-        return
     try:
         index = Index(index_as=sdk_consts.IndexType.from_str(index_as), file_path=file_path, family_name=family_name)
         index.send(wait=True)
@@ -174,11 +171,6 @@ def index_directory_command(directory_path: str,
                                width=0) as progressbar:
             for file_name in files:
                 file_path = os.path.join(root, file_name)
-
-                if not utilities.is_supported_file(file_path):
-                    click.echo('Could not open {} because it is not a supported file type'.format(file_name))
-                    progressbar.update(1)
-                    continue
 
                 try:
                     index = Index(index_as=sdk_consts.IndexType.from_str(index_as),
