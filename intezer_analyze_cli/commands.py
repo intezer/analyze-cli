@@ -38,7 +38,7 @@ def analyze_file_command(file_path: str,
                          disable_dynamic_unpacking: bool,
                          disable_static_unpacking: bool,
                          code_item_type: str):
-    if not utilities.is_supported_file(file_path) and disable_dynamic_unpacking:
+    if disable_dynamic_unpacking and not utilities.is_supported_file(file_path):
         click.echo('File is not PE, ELF, DEX or APK')
         return
 
@@ -68,6 +68,9 @@ def analyze_directory_command(path: str,
     unsupported_number = 0
 
     for root, dirs, files in os.walk(path):
+        files = [f for f in files if not f[0] == '.']
+        dirs[:] = [d for d in dirs if not d[0] == '.']
+
         number_of_files = len(files)
         if not ignore_directory_count_limit:
             utilities.check_should_continue_for_large_dir(number_of_files, default_config.unusual_amount_in_dir)
@@ -79,7 +82,7 @@ def analyze_directory_command(path: str,
                                show_pos=True) as progressbar:
             for file_name in files:
                 file_path = os.path.join(root, file_name)
-                if not utilities.is_supported_file(file_path) and disable_dynamic_unpacking:
+                if disable_dynamic_unpacking and not utilities.is_supported_file(file_path):
                     unsupported_number += 1
                 else:
                     try:
@@ -147,6 +150,9 @@ def analyze_by_txt_file_command(path: str):
 
 
 def index_file_command(file_path: str, index_as: str, family_name: Optional[str]):
+    if not utilities.is_supported_file(file_path):
+        click.echo('File is not PE, ELF, DEX or APK')
+        return
     try:
         index = Index(index_as=sdk_consts.IndexType.from_str(index_as), file_path=file_path, family_name=family_name)
         index.send(wait=True)
@@ -162,6 +168,9 @@ def index_directory_command(directory_path: str,
     indexes_results = []
 
     for root, dirs, files in os.walk(directory_path):
+        files = [f for f in files if not f[0] == '.']
+        dirs[:] = [d for d in dirs if not d[0] == '.']
+
         number_of_files = len(files)
         if not ignore_directory_count_limit:
             utilities.check_should_continue_for_large_dir(number_of_files, default_config.unusual_amount_in_dir)
@@ -171,6 +180,11 @@ def index_directory_command(directory_path: str,
                                width=0) as progressbar:
             for file_name in files:
                 file_path = os.path.join(root, file_name)
+
+                if not utilities.is_supported_file(file_path):
+                    click.echo('Could not open {} because it is not a supported file type'.format(file_name))
+                    progressbar.update(1)
+                    continue
 
                 try:
                     index = Index(index_as=sdk_consts.IndexType.from_str(index_as),
