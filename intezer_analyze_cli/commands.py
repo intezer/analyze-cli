@@ -12,6 +12,7 @@ from intezer_sdk.index import Index
 from intezer_analyze_cli import key_store
 from intezer_analyze_cli import utilities
 from intezer_analyze_cli.config import default_config
+from intezer_analyze_cli.utilities import is_hidden
 
 logger = logging.getLogger('intezer_client')
 
@@ -68,8 +69,8 @@ def analyze_directory_command(path: str,
     unsupported_number = 0
 
     for root, dirs, files in os.walk(path):
-        files = [f for f in files if not f[0] == '.']
-        dirs[:] = [d for d in dirs if not d[0] == '.']
+        files = [f for f in files if not is_hidden(f[0])]
+        dirs[:] = [d for d in dirs if not is_hidden(d[0])]
 
         number_of_files = len(files)
         if not ignore_directory_count_limit:
@@ -168,8 +169,8 @@ def index_directory_command(directory_path: str,
     indexes_results = []
 
     for root, dirs, files in os.walk(directory_path):
-        files = [f for f in files if not f[0] == '.']
-        dirs[:] = [d for d in dirs if not d[0] == '.']
+        files = [f for f in files if not is_hidden(f[0])]
+        dirs[:] = [d for d in dirs if not is_hidden(d[0])]
 
         number_of_files = len(files)
         if not ignore_directory_count_limit:
