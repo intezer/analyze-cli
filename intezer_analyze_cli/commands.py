@@ -12,6 +12,7 @@ from intezer_sdk.index import Index
 from intezer_analyze_cli import key_store
 from intezer_analyze_cli import utilities
 from intezer_analyze_cli.config import default_config
+from intezer_analyze_cli.utilities import is_hidden
 
 logger = logging.getLogger('intezer_client')
 
@@ -38,7 +39,7 @@ def analyze_file_command(file_path: str,
                          disable_dynamic_unpacking: bool,
                          disable_static_unpacking: bool,
                          code_item_type: str):
-    if not utilities.is_supported_file(file_path):
+    if disable_dynamic_unpacking and not utilities.is_supported_file(file_path):
         click.echo('File is not PE, ELF, DEX or APK')
         return
 
@@ -68,6 +69,9 @@ def analyze_directory_command(path: str,
     unsupported_number = 0
 
     for root, dirs, files in os.walk(path):
+        files = [f for f in files if not is_hidden(f[0])]
+        dirs[:] = [d for d in dirs if not is_hidden(d[0])]
+
         number_of_files = len(files)
         if not ignore_directory_count_limit:
             utilities.check_should_continue_for_large_dir(number_of_files, default_config.unusual_amount_in_dir)
@@ -79,7 +83,7 @@ def analyze_directory_command(path: str,
                                show_pos=True) as progressbar:
             for file_name in files:
                 file_path = os.path.join(root, file_name)
-                if not utilities.is_supported_file(file_path):
+                if disable_dynamic_unpacking and not utilities.is_supported_file(file_path):
                     unsupported_number += 1
                 else:
                     try:
@@ -165,6 +169,9 @@ def index_directory_command(directory_path: str,
     indexes_results = []
 
     for root, dirs, files in os.walk(directory_path):
+        files = [f for f in files if not is_hidden(f[0])]
+        dirs[:] = [d for d in dirs if not is_hidden(d[0])]
+
         number_of_files = len(files)
         if not ignore_directory_count_limit:
             utilities.check_should_continue_for_large_dir(number_of_files, default_config.unusual_amount_in_dir)

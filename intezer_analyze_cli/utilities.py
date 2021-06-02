@@ -7,6 +7,10 @@ import zipfile
 
 import click
 
+if os.name == 'nt':
+    import win32api
+    import win32con
+
 log_file_path = ''
 
 
@@ -148,6 +152,14 @@ def export_to_csv(csv_file_path, items, keys=None):
         dict_writer = csv.DictWriter(output_file, sorted_keys)
         dict_writer.writeheader()
         dict_writer.writerows(items)
+
+
+def is_hidden(path):
+    if os.name == 'nt':
+        attribute = win32api.GetFileAttributes(path)
+        return attribute & (win32con.FILE_ATTRIBUTE_HIDDEN | win32con.FILE_ATTRIBUTE_SYSTEM)
+    else:
+        return os.path.basename(path).startswith('.')
 
 
 if __name__ == '__main__':
