@@ -101,8 +101,8 @@ def analyze_directory_command(path: str,
                         logger.exception('Error while analyzing directory')
                         failed_number += 1
                     except Exception:
-                        logger.error('Failed to analyze %s', file_path)
-                        raise
+                        logger.exception('Failed to analyze %s', file_path)
+                        failed_number += 1
 
                 progressbar.update(1)
 
