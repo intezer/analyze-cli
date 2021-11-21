@@ -13,7 +13,7 @@ Python and pip should be available in your path
 # Usage
 
 ## Login
-To begin using the cli, first you should login with your Intezer Analyze CLI:
+To begin using the cli, first you should login with your API key:
 
 `intezer-analyze login <api_key>`
 
@@ -23,14 +23,12 @@ If you are running the CLI against an on premise deployment, enter the url:
  
 
 ## Analyze
-
 Send a file or a directory for analysis in Intezer Analyze.
 
 ### Usage
 `intezer-analyze analyze PATH`
 
 ### Parameters
-
 PATH: Path to file or directory to send the files inside for analysis.
 
 ###  Examples:
@@ -41,3 +39,44 @@ Send a single file for analysis:
 Send all files in directory for analysis:
 
     $ intezer-analyze analyze C:\files-to-analyze
+
+For complete documentation please run `intezer-analyze analyze --help`
+ 
+## Analyze hashes file
+Send a text file with list of hashes
+
+### Usage
+`intezer-analyze analyze_by_list PATH`
+
+### Parameters
+PATH: Path to txt file.
+
+### Example
+Send txt file with hashes for analysis:
+
+    $ intezer-analyze analyze_by_list ~/files/hashes.txt
+
+For complete documentation please run `intezer-analyze analyze_by_list --help`
+
+## Index
+Send a file or a directory for indexing
+
+### Usage
+`intezer-analyze index PATH INDEX_AS [FAMILY_NAME]
+
+### Parameters
+PATH: Path to file or directory to index
+
+INDEX_AS: `malicious` or `trusted`
+
+FAMILY_NAME: The family name (optional)
+
+### Example
+index a single file:
+    
+    $ intezer-analyze index ~/files/threat.exe.sample malicious family_name
+    
+index all files in directory:
+
+    $ intezer-analyze index ~/files/files-to-index trusted
+
