@@ -62,7 +62,7 @@ For complete documentation please run `intezer-analyze analyze_by_list --help`
 Send a file or a directory for indexing
 
 ### Usage
-`intezer-analyze index PATH INDEX_AS [FAMILY_NAME]
+`intezer-analyze index PATH INDEX_AS [FAMILY_NAME]`
 
 ### Parameters
 PATH: Path to file or directory to index
@@ -80,3 +80,4 @@ index all files in directory:
 
     $ intezer-analyze index ~/files/files-to-index trusted
 
+For complete documentation please run `intezer-analyze index --help`
