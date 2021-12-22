@@ -150,6 +150,43 @@ def analyze_by_txt_file_command(path: str):
         click.Abort()
 
 
+def index_by_txt_file_command(path: str, index_as: str, family_name: str):
+    try:
+        hashes = [line.rstrip('\n') for line in open(path)]
+
+        with click.progressbar(length=len(hashes),
+                               label='Indexing files',
+                               show_pos=True,
+                               width=0) as progressbar:
+            for file_hash in hashes:
+                try:
+                    index_hash_command(file_hash, index_as, family_name)
+                except sdk_errors.HashDoesNotExistError:
+                    click.echo('Hash: {} does not exist in the system'.format(file_hash))
+                except sdk_errors.IntezerError:
+                    click.echo('Error occurred with hash: {}'.format(file_hash))
+                progressbar.update(1)
+
+            if default_config.is_cloud:
+                click.echo('index updated. In order to check their results, go to: {}'
+                           .format(default_config.analyses_url))
+            else:
+                click.echo(
+                    'index updated. In order to check their results go to Intezer Analyze history page')
+    except IOError:
+        click.echo('No read permissions for {}'.format(path))
+        click.Abort()
+
+
+def index_hash_command(sha256: str, index_as: str, family_name: Optional[str]):
+    try:
+        index = Index(index_as=sdk_consts.IndexType.from_str(index_as), sha256=sha256, family_name=family_name)
+        index.send(wait=True)
+        click.echo('Finish index: {} with status: {}'.format(index.index_id, index.status))
+    except sdk_errors.IntezerError as e:
+        click.echo('Index error: {}'.format(e))
+
+
 def index_file_command(file_path: str, index_as: str, family_name: Optional[str]):
     if not utilities.is_supported_file(file_path):
         click.echo('File is not PE, ELF, DEX or APK')

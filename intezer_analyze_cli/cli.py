@@ -161,6 +161,41 @@ def analyze_by_list(path):
                    'and attach the log file in {}'.format(utilities.log_file_path))
 
 
+@main_cli.command('index_by_list', short_help='Send a text file with list of hashes, verdict, family name if malicious')
+@click.argument('path', type=click.Path(exists=True))
+@click.argument('index_as', type=click.STRING)
+@click.argument('family_name', required=False, type=click.STRING, default=None)
+def index_by_list(path: str, index_as: str, family_name: str):
+    """
+    Send a text file with hashes for indexing in Intezer Analyze.
+
+    \b
+    PATH: Path to a txt file with hashes
+
+    \b
+    Examples:
+      $ intezer-analyze index_by_list ~/files/hashes.txt malicious family_name
+      \b
+    """
+    try:
+        index_type = sdk_consts.IndexType.from_str(index_as)
+
+        if index_type == sdk_consts.IndexType.MALICIOUS and family_name is None:
+            click.echo('family_name is mandatory if the index type is malicious')
+            return
+
+        create_global_api()
+
+        if os.path.isfile(path):
+            commands.index_by_txt_file_command(path=path, index_as=index_as, family_name=family_name)
+    except click.Abort:
+        raise
+    except Exception:
+        logger.exception('Unexpected error occurred')
+        click.echo('Unexpected error occurred, please contact us at support@intezer.com '
+                   'and attach the log file in {}'.format(utilities.log_file_path))
+
+
 @main_cli.command('index', short_help='index a file or a directory')
 @click.argument('path', type=click.Path(exists=True))
 @click.argument('index_as', type=click.STRING)
