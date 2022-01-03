@@ -1,5 +1,6 @@
 import os
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -166,6 +167,7 @@ class CliIndexSpec(CliSpec):
 
         # Act
         result = self.runner.invoke(cli.main_cli, [cli.index.name, file_path, index_as])
+
         # Assert
         self.assertEqual(result.exit_code, 0, result.exception)
         self.assertTrue(self.create_global_api_patcher_mock.called)
@@ -196,6 +198,48 @@ class CliIndexSpec(CliSpec):
 
         # Act
         result = self.runner.invoke(cli.main_cli, [cli.index.name, file_path, index_as])
+        # Assert
+        self.assertEqual(result.exit_code, 1, result.exception)
+        self.assertTrue(b'Index type can be trusted or malicious' in result.output_bytes)
+
+    @patch('intezer_analyze_cli.commands.index_by_txt_file_command')
+    def test_index_by_txt_file_command(self, create_index_by_txt_file_command_mock):
+        # Arrange
+        dir_name = Path(__file__).parent.parent.absolute()
+        file_path = os.path.join(dir_name, 'resources/test_hashes.txt')
+        index_as = 'trusted'
+
+        # Act
+        result = self.runner.invoke(cli.main_cli, [cli.index_by_list.name, file_path, index_as])
+
+        # Assert
+        self.assertEqual(result.exit_code, 0, result.exception)
+        self.assertTrue(self.create_global_api_patcher_mock.called)
+        create_index_by_txt_file_command_mock.assert_called_once_with(path=file_path,
+                                                                      index_as=index_as)
+
+    def test_index_by_txt_file_command(self):
+        # Arrange
+        dir_name = Path(__file__).parent.parent.absolute()
+        file_path = os.path.join(dir_name, 'resources/test_hashes.txt')
+        index_as = 'malicious'
+
+        # Act
+        result = self.runner.invoke(cli.main_cli, [cli.index.name, file_path, index_as])
+
+        # Assert
+        self.assertEqual(result.exit_code, 0, result.exception)
+        self.assertFalse(self.create_global_api_patcher_mock.called)
+
+    def test_index_by_txt_file_command(self):
+        # Arrange
+        dir_name = Path(__file__).parent.parent.absolute()
+        file_path = os.path.join(dir_name, 'resources/test_hashes.txt')
+        index_as = 'wrong_index'
+
+        # Act
+        result = self.runner.invoke(cli.main_cli, [cli.index.name, file_path, index_as])
+
         # Assert
         self.assertEqual(result.exit_code, 1, result.exception)
         self.assertTrue(b'Index type can be trusted or malicious' in result.output_bytes)
