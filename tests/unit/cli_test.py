@@ -216,29 +216,30 @@ class CliIndexSpec(CliSpec):
         self.assertEqual(result.exit_code, 0, result.exception)
         self.assertTrue(self.create_global_api_patcher_mock.called)
         create_index_by_txt_file_command_mock.assert_called_once_with(path=file_path,
-                                                                      index_as=index_as)
+                                                                      index_as=index_as,
+                                                                      family_name=None)
 
-    def test_index_by_txt_file_command(self):
+    def test_index_by_txt_file_command_family_none(self):
         # Arrange
         dir_name = Path(__file__).parent.parent.absolute()
         file_path = os.path.join(dir_name, 'resources/test_hashes.txt')
         index_as = 'malicious'
 
         # Act
-        result = self.runner.invoke(cli.main_cli, [cli.index.name, file_path, index_as])
+        result = self.runner.invoke(cli.main_cli, [cli.index_by_list.name, file_path, index_as])
 
         # Assert
         self.assertEqual(result.exit_code, 0, result.exception)
         self.assertFalse(self.create_global_api_patcher_mock.called)
 
-    def test_index_by_txt_file_command(self):
+    def test_index_by_txt_file_command_wrong_index(self):
         # Arrange
         dir_name = Path(__file__).parent.parent.absolute()
         file_path = os.path.join(dir_name, 'resources/test_hashes.txt')
-        index_as = 'wrong_index'
+        index_as = 'wrong_index_name'
 
         # Act
-        result = self.runner.invoke(cli.main_cli, [cli.index.name, file_path, index_as])
+        result = self.runner.invoke(cli.main_cli, [cli.index_by_list.name, file_path, index_as])
 
         # Assert
         self.assertEqual(result.exit_code, 1, result.exception)
