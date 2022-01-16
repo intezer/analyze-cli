@@ -125,7 +125,8 @@ def analyze_directory_command(path: str,
 
 def analyze_by_txt_file_command(path: str):
     try:
-        hashes = [line.rstrip('\n') for line in open(path)]
+        with open(path, 'r') as file:
+            hashes = [line.rstrip('\n') for line in file.readlines()]
         with click.progressbar(length=len(hashes),
                                label='Analyze files',
                                show_pos=True,
@@ -152,39 +153,42 @@ def analyze_by_txt_file_command(path: str):
 
 def index_by_txt_file_command(path: str, index_as: str, family_name: str):
     try:
-        hashes = [line.rstrip('\n') for line in open(path)]
-
+        with open(path, 'r') as file:
+            hashes = [line.rstrip('\n') for line in file.readlines()]
+        index_exceptions = []
         with click.progressbar(length=len(hashes),
-                               label='Indexing files',
+                               label='Uploading files',
                                show_pos=True,
-                               width=0) as progressbar:
-            for file_hash in hashes:
+                               width=0) as upload_progress:
+            for sha256 in hashes:
                 try:
-                    index_hash_command(file_hash, index_as, family_name)
+                    index_hash_command(sha256, index_as, family_name, index_exceptions)
                 except sdk_errors.HashDoesNotExistError:
-                    click.echo('Hash: {} does not exist in the system'.format(file_hash))
-                except sdk_errors.IntezerError:
-                    click.echo('Error occurred with hash: {}'.format(file_hash))
-                progressbar.update(1)
+                    index_exceptions.append('Hash: {} does not exist in the system'.format(sha256))
+                except sdk_errors.IntezerError as e:
+                    index_exceptions.append('Error occurred with hash: {}'.format(sha256, e))
+                upload_progress.update(1)
 
-            if default_config.is_cloud:
-                click.echo('index updated. In order to check their results, go to: {}'
-                           .format(default_config.analyses_url))
-            else:
-                click.echo(
-                    'index updated. In order to check their results go to Intezer Analyze history page')
+        for exception in index_exceptions:
+            click.echo(exception)
+
+        if default_config.is_cloud:
+            click.echo('index updated. In order to check their results, go to: {}'
+                       .format(default_config.index_results_url))
+        else:
+            click.echo(
+                'index updated. In order to check the results go to Private Indexed Files under Analysis Reports')
     except IOError:
         click.echo('No read permissions for {}'.format(path))
         click.Abort()
 
 
-def index_hash_command(sha256: str, index_as: str, family_name: Optional[str]):
+def index_hash_command(sha256: str, index_as: str, family_name: Optional[str], index_exceptions):
     try:
         index = Index(index_as=sdk_consts.IndexType.from_str(index_as), sha256=sha256, family_name=family_name)
         index.send(wait=True)
-        click.echo('Finish index: {} with status: {}'.format(index.index_id, index.status))
     except sdk_errors.IntezerError as e:
-        click.echo('Index error: {}'.format(e))
+        index_exceptions.append('Index error: {} Error occurred with hash: {}'.format(e, sha256))
 
 
 def index_file_command(file_path: str, index_as: str, family_name: Optional[str]):
