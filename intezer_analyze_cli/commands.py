@@ -186,7 +186,8 @@ def index_by_txt_file_command(path: str, index_as: str, family_name: str):
 def index_hash_command(sha256: str, index_as: str, family_name: Optional[str], index_exceptions):
     try:
         index = Index(index_as=sdk_consts.IndexType.from_str(index_as), sha256=sha256, family_name=family_name)
-        index.send(wait=True)
+        index.send(wait=False)
+        index.wait_for_completion(sleep_before_first_check=True)
     except sdk_errors.IntezerError as e:
         index_exceptions.append('Index error: {} Error occurred with hash: {}'.format(e, sha256))
 
