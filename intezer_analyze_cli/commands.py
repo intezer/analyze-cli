@@ -156,13 +156,14 @@ def index_by_txt_file_command(path: str, index_as: str, family_name: str):
         with open(path, 'r') as file:
             hashes = [line.rstrip('\n') for line in file.readlines()]
         index_exceptions = []
+        index_obj = []
         with click.progressbar(length=len(hashes),
                                label='Uploading files',
                                show_pos=True,
                                width=0) as upload_progress:
             for sha256 in hashes:
                 try:
-                    index_hash_command(sha256, index_as, family_name, index_exceptions)
+                    index_hash_command(sha256, index_as, family_name, index_exceptions, index_obj)
                 except sdk_errors.HashDoesNotExistError:
                     index_exceptions.append('Hash: {} does not exist in the system'.format(sha256))
                 except sdk_errors.IntezerError as e:
@@ -172,22 +173,47 @@ def index_by_txt_file_command(path: str, index_as: str, family_name: str):
         for exception in index_exceptions:
             click.echo(exception)
 
+        click.echo('Upload completed')
+        index_exceptions = []
+
+        with click.progressbar(length=len(index_obj),
+                               label='Indexing files',
+                               show_pos=True,
+                               width=0) as index_progress:
+            for i in range(len(index_obj)):
+                try:
+                    index_obj[i].wait_for_completion()
+                except sdk_errors.IndexFailed:
+                    index_exceptions.append('Failed to index index-id: {}'.format(index_obj[i].index_id))
+                except sdk_errors.ServerError as e:
+                    index_exceptions.append('Failed to index index-id: {} error: {}'.format(index_obj[i].index_id, e))
+                except sdk_errors.IntezerError as e:
+                    index_exceptions.append(e)
+
+                index_progress.update(1)
+
+        for exception in index_exceptions:
+            click.echo(exception)
+
         if default_config.is_cloud:
-            click.echo('index updated. In order to check their results, go to: {}'
+            click.echo('Index updated. In order to check their results, go to: {}'
                        .format(default_config.index_results_url))
         else:
             click.echo(
-                'index updated. In order to check the results go to Private Indexed Files under Analysis Reports')
+                'Index updated. In order to check the results go to Private Indexed Files under Analysis Reports')
     except IOError:
         click.echo('No read permissions for {}'.format(path))
         click.Abort()
 
 
-def index_hash_command(sha256: str, index_as: str, family_name: Optional[str], index_exceptions):
+def index_hash_command(sha256: str, index_as: str, family_name: Optional[str], index_exceptions, index_obj):
     try:
-        index = Index(index_as=sdk_consts.IndexType.from_str(index_as), sha256=sha256, family_name=family_name)
-        index.send(wait=False)
-        index.wait_for_completion(sleep_before_first_check=True)
+        index_obj.append(Index(index_as=sdk_consts.IndexType.from_str(index_as),
+                               sha256=sha256,
+                               family_name=family_name))
+        index_obj[-1].send(wait=False)
+    except sdk_errors.ServerError as e:
+        index_exceptions.append('Failed to index index-id: {} error: {}'.format(sha256, e))
     except sdk_errors.IntezerError as e:
         index_exceptions.append('Index error: {} Error occurred with hash: {}'.format(e, sha256))
 
