@@ -156,44 +156,36 @@ def index_by_txt_file_command(path: str, index_as: str, family_name: str):
         with open(path, 'r') as file:
             hashes = [line.rstrip('\n') for line in file.readlines()]
         index_exceptions = []
-        index_obj = []
+        index_operations = []
         with click.progressbar(length=len(hashes),
-                               label='Uploading files',
+                               label='Indexing files',
                                show_pos=True,
                                width=0) as upload_progress:
             for sha256 in hashes:
-                try:
-                    index_hash_command(sha256, index_as, family_name, index_exceptions, index_obj)
-                except sdk_errors.HashDoesNotExistError:
-                    index_exceptions.append('Hash: {} does not exist in the system'.format(sha256))
-                except sdk_errors.IntezerError as e:
-                    index_exceptions.append('Error occurred with hash: {}'.format(sha256, e))
+                index_operation, index_exception = index_hash_command(sha256, index_as, family_name)
+                if index_operation:
+                    index_operations.append((index_operation, sha256))
+                else:
+                    index_exceptions.append(index_exception)
                 upload_progress.update(1)
+        click.echo('Indexing sent')
 
-        for exception in index_exceptions:
-            click.echo(exception)
-
-        click.echo('Upload completed')
+        echo_exceptions(index_exceptions)
         index_exceptions = []
-
-        with click.progressbar(length=len(index_obj),
+        with click.progressbar(length=len(index_operations),
                                label='Indexing files',
                                show_pos=True,
                                width=0) as index_progress:
-            for i in range(len(index_obj)):
+            for index_operation, sha256 in index_operations:
                 try:
-                    index_obj[i].wait_for_completion()
-                except sdk_errors.IndexFailed:
-                    index_exceptions.append('Failed to index index-id: {}'.format(index_obj[i].index_id))
-                except sdk_errors.ServerError as e:
-                    index_exceptions.append('Failed to index index-id: {} error: {}'.format(index_obj[i].index_id, e))
+                    index_operation.wait_for_completion()
                 except sdk_errors.IntezerError as e:
-                    index_exceptions.append(e)
-
+                    index_exceptions.append('Failed to index hash: {} error: {}'.format(sha256, e))
+                except sdk_errors.IndexFailed:
+                    index_exceptions.append('Failed to index hash: {} error: {}'.format(sha256, e))
                 index_progress.update(1)
 
-        for exception in index_exceptions:
-            click.echo(exception)
+        echo_exceptions(index_exceptions)
 
         if default_config.is_cloud:
             click.echo('Index updated. In order to check their results, go to: {}'
@@ -206,16 +198,22 @@ def index_by_txt_file_command(path: str, index_as: str, family_name: str):
         click.Abort()
 
 
-def index_hash_command(sha256: str, index_as: str, family_name: Optional[str], index_exceptions, index_obj):
+def echo_exceptions(exceptions):
+    if exceptions:
+        click.echo('Some hashes failed')
+        for exception in exceptions:
+            click.echo(exception)
+
+
+def index_hash_command(sha256: str, index_as: str, family_name: Optional[str]):
     try:
-        index_obj.append(Index(index_as=sdk_consts.IndexType.from_str(index_as),
-                               sha256=sha256,
-                               family_name=family_name))
-        index_obj[-1].send(wait=False)
-    except sdk_errors.ServerError as e:
-        index_exceptions.append('Failed to index index-id: {} error: {}'.format(sha256, e))
+        index_operation = Index(index_as=sdk_consts.IndexType.from_str(index_as),
+                                sha256=sha256,
+                                family_name=family_name)
+        index_operation.send(wait=False)
+        return index_operation, None
     except sdk_errors.IntezerError as e:
-        index_exceptions.append('Index error: {} Error occurred with hash: {}'.format(e, sha256))
+        return None, 'Index error: {} Error occurred with hash: {}'.format(e, sha256)
 
 
 def index_file_command(file_path: str, index_as: str, family_name: Optional[str]):
