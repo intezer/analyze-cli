@@ -162,7 +162,7 @@ def analyze_by_list(path):
 
 @main_cli.command('index_by_list', short_help='Send a text file with list of hashes, verdict, family name if malicious')
 @click.argument('path', type=click.Path(exists=True, dir_okay=False))
-@click.argument('index_as', type=click.STRING)
+@click.option('--index-as', type=click.Choice(['malicious', 'trusted'], case_sensitive=False))
 @click.argument('family_name', required=False, type=click.STRING, default=None)
 def index_by_list(path: str, index_as: str, family_name: str):
     """
@@ -188,9 +188,6 @@ def index_by_list(path: str, index_as: str, family_name: str):
         commands.index_by_txt_file_command(path=path, index_as=index_as, family_name=family_name)
     except click.Abort:
         raise
-    except NotImplementedError:
-        click.echo('Index type can be trusted or malicious only')
-        raise click.Abort()
     except Exception:
         logger.exception('Unexpected error occurred')
         click.echo('Unexpected error occurred, please contact us at support@intezer.com '
