@@ -1,7 +1,7 @@
 1.8
 -----
- -
- -
+ - Support click 7.1.2
+ - Add '--index-as' using click.choice for input validation
 
 1.7.4
 ------

@@ -86,18 +86,18 @@ For complete documentation please run `intezer-analyze index --help`
 Send a text file with list of hashes to index
 
 ### Usage 
-`intezer-analyze index_by_list PATH INDEX_AS [FAMILY_NAME]`
+`intezer-analyze index_by_list PATH --index-as=INDEX [FAMILY_NAME]`
 
 ### Parameters
 PATH: Path to txt file 
 
-INDEX_AS: `malicious` or `trusted`
+--index-as: `malicious` or `trusted`
 
 FAMILY_NAME: The family name (optional)
 
 ### Example
 Send a file with hashes and verdict for indexing:
  
-    $ intezer-analyze index_by_list ~/files/hashes.txt malicious family_name
+    $ intezer-analyze index_by_list ~/files/hashes.txt --index-as=malicious family_name
 
 For complete documentation please run `intezer-analyze index --help`

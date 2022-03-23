@@ -166,7 +166,7 @@ class CliIndexSpec(CliSpec):
         index_as = 'trusted'
 
         # Act
-        result = self.runner.invoke(cli.main_cli, [cli.index.name, file_path, index_as])
+        result = self.runner.invoke(cli.main_cli, [cli.index.name, file_path, '--index-as=trusted'])
 
         # Assert
         self.assertEqual(result.exit_code, 0, result.exception)
@@ -182,7 +182,7 @@ class CliIndexSpec(CliSpec):
         index_as = 'trusted'
 
         # Act
-        result = self.runner.invoke(cli.main_cli, [cli.index.name, directory_path, index_as])
+        result = self.runner.invoke(cli.main_cli, [cli.index.name, directory_path, '--index-as=trusted'])
         # Assert
         self.assertEqual(result.exit_code, 0, result.exception)
         self.assertTrue(self.create_global_api_patcher_mock.called)
@@ -197,10 +197,13 @@ class CliIndexSpec(CliSpec):
         index_as = 'wrong_index_name'
 
         # Act
-        result = self.runner.invoke(cli.main_cli, [cli.index.name, file_path, index_as])
+        result = self.runner.invoke(cli.main_cli, [cli.index.name, file_path, '--index-as=wrong_index_name'])
         # Assert
-        self.assertEqual(result.exit_code, 1, result.exception)
-        self.assertTrue(b'Index type can be trusted or malicious' in result.stdout_bytes)
+        self.assertEqual(result.exit_code, 2, result.exception)
+        self.assertTrue(b'Usage: main-cli index [OPTIONS] PATH [FAMILY_NAME]' in result.stdout_bytes)
+        self.assertTrue(b'Try \'main-cli index -h\' for help.' in result.stdout_bytes)
+        self.assertTrue(b'Error: Invalid value for \'--index-as\': invalid choice: wrong_index_name. '
+                        b'(choose from malicious, trusted)' in result.stdout_bytes)
 
     @patch('intezer_analyze_cli.commands.index_by_txt_file_command')
     def test_index_by_txt_file_command(self, create_index_by_txt_file_command_mock):
