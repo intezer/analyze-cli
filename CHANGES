@@ -1,3 +1,8 @@
+1.8
+-----
+ - Bump to click 7.1.2
+ - Add index_by_list command to index list of hashes given a text file
+
 1.7.4
 ------
 added `--ignore-directory-count-limit` flag to ignore directory item count limit

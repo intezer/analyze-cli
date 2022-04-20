@@ -125,7 +125,7 @@ def analyze_directory_command(path: str,
 
 def analyze_by_txt_file_command(path: str):
     try:
-        hashes = [line.rstrip('\n') for line in open(path)]
+        hashes = get_hashes_from_file(path)
         with click.progressbar(length=len(hashes),
                                label='Analyze files',
                                show_pos=True,
@@ -148,6 +148,76 @@ def analyze_by_txt_file_command(path: str):
     except IOError:
         click.echo('No read permissions for {}'.format(path))
         click.Abort()
+
+
+def index_by_txt_file_command(path: str, index_as: str, family_name: str):
+    try:
+        hashes = get_hashes_from_file(path)
+        index_exceptions = []
+        index_operations = []
+        with click.progressbar(length=len(hashes),
+                               label='Indexing files',
+                               show_pos=True,
+                               width=0) as upload_progress:
+            for sha256 in hashes:
+                index_operation, index_exception = index_hash_command(sha256, index_as, family_name)
+                if index_operation:
+                    index_operations.append((index_operation, sha256))
+                else:
+                    index_exceptions.append(index_exception)
+                upload_progress.update(1)
+        click.echo('Indexing sent')
+
+        echo_exceptions(index_exceptions)
+        index_exceptions = []
+        with click.progressbar(length=len(index_operations),
+                               label='Waiting for indexing to finish',
+                               show_pos=True,
+                               width=0) as index_progress:
+            for index_operation, sha256 in index_operations:
+                try:
+                    index_operation.wait_for_completion()
+                except sdk_errors.IntezerError as e:
+                    index_exceptions.append('Failed to index hash: {} error: {}'.format(sha256, e))
+                except sdk_errors.IndexFailed:
+                    index_exceptions.append('Failed to index hash: {} error: {}'.format(sha256, e))
+                index_progress.update(1)
+
+        echo_exceptions(index_exceptions)
+
+        if default_config.is_cloud:
+            click.echo('Index updated. In order to check their results, go to: {}'
+                       .format(default_config.index_results_url))
+        else:
+            click.echo(
+                'Index updated. In order to check the results go to Private Indexed Files under Analysis Reports')
+    except IOError:
+        click.echo('No read permissions for {}'.format(path))
+        click.Abort()
+
+
+def echo_exceptions(exceptions):
+    if exceptions:
+        click.echo('Some hashes failed')
+        for exception in exceptions:
+            click.echo(exception)
+
+
+def get_hashes_from_file(path):
+    with open(path, 'r') as file:
+        hashes = [line.strip('\n') for line in file.readlines()]
+        return hashes
+
+
+def index_hash_command(sha256: str, index_as: str, family_name: Optional[str]):
+    try:
+        index_operation = Index(index_as=sdk_consts.IndexType.from_str(index_as),
+                                sha256=sha256,
+                                family_name=family_name)
+        index_operation.send(wait=False)
+        return index_operation, None
+    except sdk_errors.IntezerError as e:
+        return None, 'Index error: {} Error occurred with hash: {}'.format(e, sha256)
 
 
 def index_file_command(file_path: str, index_as: str, family_name: Optional[str]):

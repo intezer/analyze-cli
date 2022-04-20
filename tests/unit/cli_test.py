@@ -1,5 +1,6 @@
 import os
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -51,8 +52,8 @@ class CliLoginSpec(CliSpec):
             result = self.runner.invoke(cli.main_cli, [cli.login.name, api_key])
         # Assert
         self.assertEqual(result.exit_code, 1)
-        self.assertTrue(b'Invalid API key' in result.output_bytes)
-        self.assertTrue(b'Aborted' in result.output_bytes)
+        self.assertTrue(b'Invalid API key' in result.stdout_bytes)
+        self.assertTrue(b'Aborted' in result.stdout_bytes)
 
     def test_analyze_exits_when_not_login(self):
         # Arrange
@@ -65,8 +66,8 @@ class CliLoginSpec(CliSpec):
                                          file_path])
         # Assert
         self.assertEqual(result.exit_code, 1)
-        self.assertTrue(b'Cant find API key' in result.output_bytes)
-        self.assertTrue(b'Aborted' in result.output_bytes)
+        self.assertTrue(b'Cant find API key' in result.stdout_bytes)
+        self.assertTrue(b'Aborted' in result.stdout_bytes)
 
 
 class CliAnalyzeSpec(CliSpec):
@@ -165,7 +166,8 @@ class CliIndexSpec(CliSpec):
         index_as = 'trusted'
 
         # Act
-        result = self.runner.invoke(cli.main_cli, [cli.index.name, file_path, index_as])
+        result = self.runner.invoke(cli.main_cli, [cli.index.name, file_path, '--index-as=trusted'])
+
         # Assert
         self.assertEqual(result.exit_code, 0, result.exception)
         self.assertTrue(self.create_global_api_patcher_mock.called)
@@ -180,7 +182,7 @@ class CliIndexSpec(CliSpec):
         index_as = 'trusted'
 
         # Act
-        result = self.runner.invoke(cli.main_cli, [cli.index.name, directory_path, index_as])
+        result = self.runner.invoke(cli.main_cli, [cli.index.name, directory_path, '--index-as=trusted'])
         # Assert
         self.assertEqual(result.exit_code, 0, result.exception)
         self.assertTrue(self.create_global_api_patcher_mock.called)
@@ -195,7 +197,56 @@ class CliIndexSpec(CliSpec):
         index_as = 'wrong_index_name'
 
         # Act
-        result = self.runner.invoke(cli.main_cli, [cli.index.name, file_path, index_as])
+        result = self.runner.invoke(cli.main_cli, [cli.index.name, file_path, '--index-as=wrong_index_name'])
         # Assert
-        self.assertEqual(result.exit_code, 1, result.exception)
-        self.assertTrue(b'Index type can be trusted or malicious' in result.output_bytes)
+        self.assertEqual(result.exit_code, 2, result.exception)
+        self.assertTrue(b'Usage: main-cli index [OPTIONS] PATH [FAMILY_NAME]' in result.stdout_bytes)
+        self.assertTrue(b'Try \'main-cli index -h\' for help.' in result.stdout_bytes)
+        self.assertTrue(b'Error: Invalid value for \'--index-as\': invalid choice: wrong_index_name. '
+                        b'(choose from malicious, trusted)' in result.stdout_bytes)
+
+    @patch('intezer_analyze_cli.commands.index_by_txt_file_command')
+    def test_index_by_txt_file_command(self, create_index_by_txt_file_command_mock):
+        # Arrange
+        dir_name = Path(__file__).parent.parent.absolute()
+        file_path = os.path.join(dir_name, 'resources/test_hashes.txt')
+        index_as = 'trusted'
+
+        # Act
+        result = self.runner.invoke(cli.main_cli, [cli.index_by_list.name, file_path, '--index-as=trusted'])
+
+        # Assert
+        self.assertEqual(result.exit_code, 0, result.exception)
+        self.assertTrue(self.create_global_api_patcher_mock.called)
+        create_index_by_txt_file_command_mock.assert_called_once_with(path=file_path,
+                                                                      index_as=index_as,
+                                                                      family_name=None)
+
+    def test_index_by_txt_file_command_family_none(self):
+        # Arrange
+        dir_name = Path(__file__).parent.parent.absolute()
+        file_path = os.path.join(dir_name, 'resources/test_hashes.txt')
+        index_as = 'malicious'
+
+        # Act
+        result = self.runner.invoke(cli.main_cli, [cli.index_by_list.name, file_path, '--index-as=malicious'])
+
+        # Assert
+        self.assertEqual(result.exit_code, 0, result.exception)
+        self.assertFalse(self.create_global_api_patcher_mock.called)
+
+    def test_index_by_txt_file_command_wrong_index(self):
+        # Arrange
+        dir_name = Path(__file__).parent.parent.absolute()
+        file_path = os.path.join(dir_name, 'resources/test_hashes.txt')
+        index_as = 'wrong_index_name'
+
+        # Act
+        result = self.runner.invoke(cli.main_cli, [cli.index_by_list.name, file_path, '--index-as=wrong_index_name'])
+
+        # Assert
+        self.assertEqual(result.exit_code, 2, result.exception)
+        self.assertTrue(b'Usage: main-cli index_by_list [OPTIONS] PATH [FAMILY_NAME]' in result.stdout_bytes)
+        self.assertTrue(b'Try \'main-cli index_by_list -h\' for help.' in result.stdout_bytes)
+        self.assertTrue(b'Error: Invalid value for \'--index-as\': invalid choice: wrong_index_name. '
+                        b'(choose from malicious, trusted)' in result.stdout_bytes)
