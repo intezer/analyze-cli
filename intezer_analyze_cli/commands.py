@@ -125,8 +125,7 @@ def analyze_directory_command(path: str,
 
 def analyze_by_txt_file_command(path: str):
     try:
-        with open(path, 'r') as file:
-            hashes = [line.strip('\n') for line in file.readlines()]
+        hashes = get_hashes_from_file(path)
         with click.progressbar(length=len(hashes),
                                label='Analyze files',
                                show_pos=True,
@@ -153,8 +152,7 @@ def analyze_by_txt_file_command(path: str):
 
 def index_by_txt_file_command(path: str, index_as: str, family_name: str):
     try:
-        with open(path, 'r') as file:
-            hashes = [line.strip('\n') for line in file.readlines()]
+        hashes = get_hashes_from_file(path)
         index_exceptions = []
         index_operations = []
         with click.progressbar(length=len(hashes),
@@ -203,6 +201,12 @@ def echo_exceptions(exceptions):
         click.echo('Some hashes failed')
         for exception in exceptions:
             click.echo(exception)
+
+
+def get_hashes_from_file(path):
+    with open(path, 'r') as file:
+        hashes = [line.strip('\n') for line in file.readlines()]
+        return hashes
 
 
 def index_hash_command(sha256: str, index_as: str, family_name: Optional[str]):
