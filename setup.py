@@ -26,16 +26,20 @@ tests_require = [
     'responses==0.13.2'
 ]
 
+with open('README.md') as f:
+    long_description = f.read()
+
 setup(
     name='intezer-analyze-cli',
     version=version,
     description='Client library for Intezer cloud service',
     author='Intezer Labs ltd.',
     classifiers=[
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8'
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10'
     ],
     keywords='intezer',
     packages=['intezer_analyze_cli'],
@@ -46,6 +50,8 @@ setup(
         intezer-analyze=intezer_analyze_cli.cli:main_cli
     ''',
     license='Apache License v2',
-    python_requires='>=3.5',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
+    python_requires='>=3.6',
     zip_safe=False
 )
