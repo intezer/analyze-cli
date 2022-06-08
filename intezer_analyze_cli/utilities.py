@@ -1,15 +1,10 @@
 import csv
-import hashlib
 import logging
 import os
 import tempfile
 import zipfile
 
 import click
-
-if os.name == 'nt':
-    import win32api
-    import win32con
 
 log_file_path = ''
 
@@ -156,6 +151,11 @@ def export_to_csv(csv_file_path, items, keys=None):
 
 def is_hidden(path):
     if os.name == 'nt':
+        try:
+            import win32api
+            import win32con
+        except ImportError:
+            return False
         attribute = win32api.GetFileAttributes(path)
         return attribute & (win32con.FILE_ATTRIBUTE_HIDDEN | win32con.FILE_ATTRIBUTE_SYSTEM)
     else:
