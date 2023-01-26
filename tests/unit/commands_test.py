@@ -71,3 +71,36 @@ class CommandsAnalyzeSpec(CliSpec):
 
         # Assert
         self.send_analyze_mock.assert_not_called()
+
+    def test_offline_scan_upload(self):
+        # Arrange
+        create_global_api()
+        dir_name = Path(__file__).parent.parent.absolute()
+        offline_scan_directory = os.path.join(dir_name, 'resources', 'offline_endpoint_scans', 'offline_scan_directory')
+        analysis_id_file_path = os.path.join(offline_scan_directory, 'analysis_id.txt')
+        self.addCleanup(os.remove, analysis_id_file_path)
+
+        # Act
+        commands.upload_offline_endpoint_scan(offline_scan_directory)
+
+        # Assert
+        self.send_analyze_mock.assert_called_once()
+        self.assertTrue(os.path.isfile(analysis_id_file_path))
+
+
+    def test_offline_scan_upload_multiple(self):
+        # Arrange
+        create_global_api()
+        dir_name = Path(__file__).parent.parent.absolute()
+        offline_scans_root = os.path.join(dir_name, 'resources', 'offline_endpoint_scans')
+        analysis_id_file_path = os.path.join(offline_scans_root, 'offline_scan_directory', 'analysis_id.txt')
+        another_offline_scan_id_path = os.path.join(offline_scans_root, 'another_offline_scan_directory', 'analysis_id.txt')
+        self.addCleanup(os.remove, analysis_id_file_path)
+        self.addCleanup(os.remove, another_offline_scan_id_path)
+        # Act
+        commands.upload_multiple_offline_endpoint_scans(offline_scans_root)
+
+        # Assert
+        self.assertTrue(self.send_analyze_mock.call_count == 2)
+        self.assertTrue(os.path.isfile(analysis_id_file_path))
+        self.assertTrue(os.path.isfile(another_offline_scan_id_path))

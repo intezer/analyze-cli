@@ -6,7 +6,8 @@ import click
 from intezer_sdk import api
 from intezer_sdk import consts as sdk_consts
 from intezer_sdk import errors as sdk_errors
-from intezer_sdk.analysis import Analysis
+from intezer_sdk.analysis import FileAnalysis
+from intezer_sdk.endpoint_analysis import EndpointAnalysis
 from intezer_sdk.index import Index
 
 from intezer_analyze_cli import key_store
@@ -44,7 +45,7 @@ def analyze_file_command(file_path: str,
         return
 
     try:
-        analysis = Analysis(file_path=file_path,
+        analysis = FileAnalysis(file_path=file_path,
                             code_item_type=code_item_type,
                             disable_dynamic_unpacking=disable_dynamic_unpacking,
                             disable_static_unpacking=disable_static_unpacking)
@@ -87,7 +88,7 @@ def analyze_directory_command(path: str,
                     unsupported_number += 1
                 else:
                     try:
-                        Analysis(file_path=file_path,
+                        FileAnalysis(file_path=file_path,
                                  code_item_type=code_item_type,
                                  disable_dynamic_unpacking=disable_dynamic_unpacking,
                                  disable_static_unpacking=disable_static_unpacking).send()
@@ -132,7 +133,7 @@ def analyze_by_txt_file_command(path: str):
                                width=0) as progressbar:
             for file_hash in hashes:
                 try:
-                    Analysis(file_hash=file_hash).send()
+                    FileAnalysis(file_hash=file_hash).send()
                 except sdk_errors.HashDoesNotExistError:
                     click.echo('Hash: {} does not exist in the system'.format(file_hash))
                 except sdk_errors.IntezerError:
@@ -277,3 +278,95 @@ def index_directory_command(directory_path: str,
                 except Exception:
                     click.echo('error occurred during indexing of {}'.format(index_result['file_name']))
                     progressbar.update(1)
+
+def upload_offline_endpoint_scan(offline_scan_directory: str, force: bool = False):
+    try:
+        if not force and _was_directory_already_sent(offline_scan_directory):
+            click.Abort()
+        endpoint_analysis = EndpointAnalysis(offline_scan_directory=offline_scan_directory)
+        endpoint_analysis.send(wait=False)
+        _create_analysis_id_file(offline_scan_directory, endpoint_analysis.analysis_id)
+
+        if default_config.is_cloud:
+            click.echo(
+                'Analysis created. In order to check its result, go to: {}/{}'.format(
+                    default_config.endpoint_analyses_url,
+                    endpoint_analysis.analysis_id))
+        else:
+            click.echo('Analysis created. In order to check its result go to Intezer Analyze history page')
+    except sdk_errors.IntezerError as e:
+        click.echo('Analyze error: {}'.format(e))
+
+def upload_multiple_offline_endpoint_scans(offline_scans_root_directory: str,
+                                           force: bool = False):
+    success_number = 0
+    failed_number = 0
+
+    directories = [d for d in os.listdir(offline_scans_root_directory) if
+                   os.path.isdir(os.path.join(offline_scans_root_directory, d)) and
+                   not is_hidden(os.path.join(offline_scans_root_directory, d))]
+
+    if 'files' not in directories:
+        click.echo('Directory "files" is missing')
+        click.Abort()
+    directories.remove('files')
+
+    if 'fileless' not in directories:
+        click.echo('Directory "fileless" is missing')
+        click.Abort()
+    directories.remove('fileless')
+
+    if 'memory_modules' not in directories:
+        click.echo('Directory "memory_modules" is missing')
+        click.Abort()
+    directories.remove('memory_modules')
+
+    with click.progressbar(length=len(directories),
+                           label='Sending offline endpoint scans for analysis',
+                           show_pos=True) as progressbar:
+        for scan_dir in directories:
+            offline_scan_directory = os.path.join(offline_scans_root_directory, scan_dir)
+            try:
+                if not force and _was_directory_already_sent(offline_scan_directory):
+                    continue
+
+                endpoint_analysis = EndpointAnalysis(offline_scan_directory=offline_scan_directory)
+                endpoint_analysis.send(wait=False)
+                success_number += 1
+
+                _create_analysis_id_file(offline_scan_directory,endpoint_analysis.analysis_id)
+
+                if default_config.is_cloud:
+                    click.echo(f'Analysis created. In order to check its result, go to: '
+                               f'{default_config.endpoint_analyses_url}/{endpoint_analysis.analysis_id}')
+                else:
+                    click.echo('Analysis created. In order to check its result go to Intezer Analyze history page')
+            except Exception as e:
+                logger.exception(f'Error while analyzing directory {scan_dir}: {str(e)}')
+                failed_number += 1
+            finally:
+                progressbar.update(1)
+
+    if success_number != 0:
+        click.echo(f'{success_number} offline endpoint scans were sent successfully')
+    if failed_number != 0:
+        click.echo(f'{failed_number} offline endpoint scans failed to send')
+
+def _was_directory_already_sent(path: str) -> bool:
+    try:
+        if os.path.isfile(os.path.join(path, 'analysis_id.txt')):
+            with open(os.path.join(path, 'analysis_id.txt'), 'r') as f:
+                analysis_id = f.read()
+            click.echo(f'Scan: {os.path.dirname(path)} has already been sent for analysis. '
+                       f'See: {default_config.endpoint_analyses_url}/{analysis_id}')
+            return True
+    except BaseException as e:
+        click.echo(f'Error while reading analysis_id.txt file in directory {os.path.dirname(path)}')
+    return False
+
+def _create_analysis_id_file(directory: str, analysis_id: str):
+    try:
+        with open(os.path.join(directory, 'analysis_id.txt'), 'w') as f:
+            f.write(analysis_id)
+    except BaseException as e:
+        click.echo(f'Could not create analysis_id.txt file in {directory}')

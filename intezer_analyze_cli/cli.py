@@ -239,6 +239,61 @@ def index(path: str, index_as: str, family_name: str, ignore_directory_count_lim
                    'and attach the log file in {}'.format(utilities.log_file_path))
 
 
+@main_cli.command('upload_endpoint_scan', short_help='upload a directory with offline endpoint scan results')
+@click.argument('offline_scan_directory', type=click.Path(exists=True))
+@click.option('--force', is_flag=True, default=False, help='Upload scan even if it was already uploaded')
+def upload_endpoint_scan(offline_scan_directory: str, force: bool):
+    """ Upload a directory with offline endpoint scan results
+
+
+    OFFLINE_SCAN_DIRECTORY: Path to directory with offline endpoint scan results
+
+
+    Examples:
+      upload a directory with offline endpoint scan results:
+
+      $ intezer-analyze upload_endpoint_scan /path/to/endpoint_scan_results
+    """
+    try:
+        create_global_api()
+
+        commands.upload_offline_endpoint_scan(offline_scan_directory=offline_scan_directory, force=force)
+    except click.Abort:
+        raise
+    except Exception:
+        logger.exception('Unexpected error occurred')
+        click.echo('Unexpected error occurred, please contact us at support@intezer.com '
+                   'and attach the log file in {}'.format(utilities.log_file_path))
+
+
+@main_cli.command('upload_endpoint_scans_in_directory',
+                  short_help='upload all subdirectories with offline endpoint scan results')
+@click.argument('offline_scans_root_directory', type=click.Path(exists=True))
+@click.option('--force', is_flag=True, default=False, help='Upload scans even if they were already uploaded')
+def upload_endpoint_scans_in_directory(offline_scans_root_directory: str, force: bool = False):
+    """ Upload a subdirectories with offline endpoint scan results
+
+
+    OFFLINE_SCANS_ROOT_DIRECTORY: Path to root directory containing offline endpoint scan results
+
+
+    Examples:
+      upload a directory with offline endpoint scan results:
+
+      $ intezer-analyze upload_endpoint_scan_directories /path/to/endpoint_scan_results_root
+    """
+    try:
+        create_global_api()
+        commands.upload_multiple_offline_endpoint_scans(offline_scans_root_directory=offline_scans_root_directory,
+                                                        force=force)
+    except click.Abort:
+        raise
+    except Exception:
+        logger.exception('Unexpected error occurred')
+        click.echo('Unexpected error occurred, please contact us at support@intezer.com '
+                   'and attach the log file in {}'.format(utilities.log_file_path))
+
+
 if __name__ == '__main__':
     try:
         main_cli()
