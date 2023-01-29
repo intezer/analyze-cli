@@ -46,9 +46,9 @@ def analyze_file_command(file_path: str,
 
     try:
         analysis = FileAnalysis(file_path=file_path,
-                            code_item_type=code_item_type,
-                            disable_dynamic_unpacking=disable_dynamic_unpacking,
-                            disable_static_unpacking=disable_static_unpacking)
+                                code_item_type=code_item_type,
+                                disable_dynamic_unpacking=disable_dynamic_unpacking,
+                                disable_static_unpacking=disable_static_unpacking)
         analysis.send()
         if default_config.is_cloud:
             click.echo(
@@ -89,9 +89,9 @@ def analyze_directory_command(path: str,
                 else:
                     try:
                         FileAnalysis(file_path=file_path,
-                                 code_item_type=code_item_type,
-                                 disable_dynamic_unpacking=disable_dynamic_unpacking,
-                                 disable_static_unpacking=disable_static_unpacking).send()
+                                     code_item_type=code_item_type,
+                                     disable_dynamic_unpacking=disable_dynamic_unpacking,
+                                     disable_static_unpacking=disable_static_unpacking).send()
                         success_number += 1
                     except sdk_errors.IntezerError as ex:
                         # We cannot continue analyzing the directory if the account is out of quota
@@ -148,7 +148,7 @@ def analyze_by_txt_file_command(path: str):
                     'analysis created. In order to check their results go to Intezer Analyze history page')
     except IOError:
         click.echo('No read permissions for {}'.format(path))
-        click.Abort()
+        raise click.Abort()
 
 
 def index_by_txt_file_command(path: str, index_as: str, family_name: str):
@@ -194,7 +194,7 @@ def index_by_txt_file_command(path: str, index_as: str, family_name: str):
                 'Index updated. In order to check the results go to Private Indexed Files under Analysis Reports')
     except IOError:
         click.echo('No read permissions for {}'.format(path))
-        click.Abort()
+        raise click.Abort()
 
 
 def echo_exceptions(exceptions):
@@ -279,12 +279,15 @@ def index_directory_command(directory_path: str,
                     click.echo('error occurred during indexing of {}'.format(index_result['file_name']))
                     progressbar.update(1)
 
+
 def upload_offline_endpoint_scan(offline_scan_directory: str, force: bool = False):
     try:
         if not force and _was_directory_already_sent(offline_scan_directory):
-            click.Abort()
+            raise click.Abort()
         endpoint_analysis = EndpointAnalysis(offline_scan_directory=offline_scan_directory)
         endpoint_analysis.send(wait=False)
+        if not endpoint_analysis.analysis_id:
+            raise RuntimeError('Error encountered while sending offline scan, server did not return analysis id')
         _create_analysis_id_file(offline_scan_directory, endpoint_analysis.analysis_id)
 
         if default_config.is_cloud:
@@ -297,6 +300,7 @@ def upload_offline_endpoint_scan(offline_scan_directory: str, force: bool = Fals
     except sdk_errors.IntezerError as e:
         click.echo('Analyze error: {}'.format(e))
 
+
 def upload_multiple_offline_endpoint_scans(offline_scans_root_directory: str,
                                            force: bool = False):
     success_number = 0
@@ -308,17 +312,17 @@ def upload_multiple_offline_endpoint_scans(offline_scans_root_directory: str,
 
     if 'files' not in directories:
         click.echo('Directory "files" is missing')
-        click.Abort()
+        raise click.Abort()
     directories.remove('files')
 
     if 'fileless' not in directories:
         click.echo('Directory "fileless" is missing')
-        click.Abort()
+        raise click.Abort()
     directories.remove('fileless')
 
     if 'memory_modules' not in directories:
         click.echo('Directory "memory_modules" is missing')
-        click.Abort()
+        raise click.Abort()
     directories.remove('memory_modules')
 
     with click.progressbar(length=len(directories),
@@ -332,9 +336,10 @@ def upload_multiple_offline_endpoint_scans(offline_scans_root_directory: str,
 
                 endpoint_analysis = EndpointAnalysis(offline_scan_directory=offline_scan_directory)
                 endpoint_analysis.send(wait=False)
+                if not endpoint_analysis.analysis_id:
+                    raise RuntimeError('Error encountered while sending offline scan, server did not return analysis id')
                 success_number += 1
-
-                _create_analysis_id_file(offline_scan_directory,endpoint_analysis.analysis_id)
+                _create_analysis_id_file(offline_scan_directory, endpoint_analysis.analysis_id)
 
                 if default_config.is_cloud:
                     click.echo(f'Analysis created. In order to check its result, go to: '
@@ -352,17 +357,20 @@ def upload_multiple_offline_endpoint_scans(offline_scans_root_directory: str,
     if failed_number != 0:
         click.echo(f'{failed_number} offline endpoint scans failed to send')
 
+
 def _was_directory_already_sent(path: str) -> bool:
     try:
         if os.path.isfile(os.path.join(path, 'analysis_id.txt')):
-            with open(os.path.join(path, 'analysis_id.txt'), 'r') as f:
+            with open(os.path.join(path, 'analysis_id.txt')) as f:
                 analysis_id = f.read()
             click.echo(f'Scan: {os.path.dirname(path)} has already been sent for analysis. '
                        f'See: {default_config.endpoint_analyses_url}/{analysis_id}')
             return True
     except BaseException as e:
         click.echo(f'Error while reading analysis_id.txt file in directory {os.path.dirname(path)}')
+        raise
     return False
+
 
 def _create_analysis_id_file(directory: str, analysis_id: str):
     try:
@@ -370,3 +378,4 @@ def _create_analysis_id_file(directory: str, analysis_id: str):
             f.write(analysis_id)
     except BaseException as e:
         click.echo(f'Could not create analysis_id.txt file in {directory}')
+        raise

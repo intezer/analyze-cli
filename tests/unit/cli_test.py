@@ -1,4 +1,5 @@
 import os
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -161,67 +162,72 @@ class UploadOfflineEndpointScanSpec(CliSpec):
     @patch('intezer_analyze_cli.commands.upload_offline_endpoint_scan')
     def test_upload_offline_endpoint_scan(self, upload_offline_endpoint_scan):
         # Arrange
-        dir_name = Path(__file__).parent.parent.absolute()
-        directory_path = os.path.join(dir_name, 'resources','offline_endpoint_scans', 'offline_scan_directory')
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory_path = os.path.join(temp_dir, 'offline_scan_directory')
+            os.makedirs(directory_path)
 
-        # Act
-        result = self.runner.invoke(cli.main_cli,
-                                    [cli.upload_endpoint_scan.name,
-                                     directory_path])
+            # Act
+            result = self.runner.invoke(cli.main_cli,
+                                        [cli.upload_endpoint_scan.name,
+                                         directory_path])
 
-        # Assert
-        self.assertEqual(result.exit_code, 0, result.exception)
-        self.assertTrue(upload_offline_endpoint_scan.called)
-        upload_offline_endpoint_scan.assert_called_once_with(offline_scan_directory=directory_path, force=False)
+            # Assert
+            self.assertEqual(result.exit_code, 0, result.exception)
+            self.assertTrue(upload_offline_endpoint_scan.called)
+            upload_offline_endpoint_scan.assert_called_once_with(offline_scan_directory=directory_path, force=False)
+
 
     @patch('intezer_analyze_cli.commands.upload_offline_endpoint_scan')
     def test_upload_offline_endpoint_scan_with_force(self, upload_offline_endpoint_scan):
         # Arrange
-        dir_name = Path(__file__).parent.parent.absolute()
-        directory_path = os.path.join(dir_name, 'resources','offline_endpoint_scans', 'offline_scan_directory')
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory_path = os.path.join(temp_dir, 'offline_scan_directory')
+            os.makedirs(directory_path)
 
-        # Act
-        result = self.runner.invoke(cli.main_cli,
-                                    [cli.upload_endpoint_scan.name,
-                                     directory_path, '--force'])
 
-        # Assert
-        self.assertEqual(result.exit_code, 0, result.exception)
-        self.assertTrue(upload_offline_endpoint_scan.called)
-        upload_offline_endpoint_scan.assert_called_once_with(offline_scan_directory=directory_path, force=True)
+            # Act
+            result = self.runner.invoke(cli.main_cli,
+                                        [cli.upload_endpoint_scan.name,
+                                         directory_path, '--force'])
+
+            # Assert
+            self.assertEqual(result.exit_code, 0, result.exception)
+            self.assertTrue(upload_offline_endpoint_scan.called)
+            upload_offline_endpoint_scan.assert_called_once_with(offline_scan_directory=directory_path, force=True)
 
     @patch('intezer_analyze_cli.commands.upload_multiple_offline_endpoint_scans')
     def test_upload_multiple_offline_endpoint_scans(self, upload_multiple_offline_endpoint_scans):
         # Arrange
-        dir_name = Path(__file__).parent.parent.absolute()
-        directory_path = os.path.join(dir_name, 'resources','offline_endpoint_scans')
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory_path = os.path.join(temp_dir, 'offline_scan_directory')
+            os.makedirs(directory_path)
+            # Act
+            result = self.runner.invoke(cli.main_cli,
+                                        [cli.upload_endpoint_scans_in_directory.name,
+                                         directory_path])
 
-        # Act
-        result = self.runner.invoke(cli.main_cli,
-                                    [cli.upload_endpoint_scans_in_directory.name,
-                                     directory_path])
-
-        # Assert
-        self.assertEqual(result.exit_code, 0, result.exception)
-        self.assertTrue(upload_multiple_offline_endpoint_scans.called)
-        upload_multiple_offline_endpoint_scans.assert_called_once_with(offline_scans_root_directory=directory_path,
-                                                                       force=False)
+            # Assert
+            self.assertEqual(result.exit_code, 0, result.exception)
+            self.assertTrue(upload_multiple_offline_endpoint_scans.called)
+            upload_multiple_offline_endpoint_scans.assert_called_once_with(offline_scans_root_directory=directory_path,
+                                                                           force=False)
     @patch('intezer_analyze_cli.commands.upload_multiple_offline_endpoint_scans')
     def test_upload_multiple_offline_endpoint_scans_force(self, upload_multiple_offline_endpoint_scans):
-        # Arrange
-        dir_name = Path(__file__).parent.parent.absolute()
-        directory_path = os.path.join(dir_name, 'resources','offline_endpoint_scans')
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Arrange
+            directory_path = os.path.join(temp_dir, 'offline_scan_directory')
+            os.makedirs(directory_path)
 
-        # Act
-        result = self.runner.invoke(cli.main_cli,
-                                    [cli.upload_endpoint_scans_in_directory.name,
-                                     directory_path, '--force'])
+            # Act
+            result = self.runner.invoke(cli.main_cli,
+                                        [cli.upload_endpoint_scans_in_directory.name,
+                                         directory_path, '--force'])
 
-        # Assert
-        self.assertEqual(result.exit_code, 0, result.exception)
-        self.assertTrue(upload_multiple_offline_endpoint_scans.called)
-        upload_multiple_offline_endpoint_scans.assert_called_once_with(offline_scans_root_directory=directory_path,
-                                                                       force=True)
+            # Assert
+            self.assertEqual(result.exit_code, 0, result.exception)
+            self.assertTrue(upload_multiple_offline_endpoint_scans.called)
+            upload_multiple_offline_endpoint_scans.assert_called_once_with(offline_scans_root_directory=directory_path,
+                                                                           force=True)
 class CliIndexSpec(CliSpec):
     def setUp(self):
         super(CliIndexSpec, self).setUp()
