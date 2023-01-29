@@ -1,4 +1,5 @@
 import os
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -148,7 +149,85 @@ class CliAnalyzeSpec(CliSpec):
                                                                       code_item_type=None,
                                                                       ignore_directory_count_limit=False)
 
+class UploadOfflineEndpointScanSpec(CliSpec):
+    def setUp(self):
+        super(UploadOfflineEndpointScanSpec, self).setUp()
 
+        create_global_api_patcher = patch('intezer_analyze_cli.cli.create_global_api')
+        self.create_global_api_patcher_mock = create_global_api_patcher.start()
+        self.addCleanup(create_global_api_patcher.stop)
+
+        key_store.get_stored_api_key = MagicMock(return_value='api_key')
+
+    @patch('intezer_analyze_cli.commands.upload_offline_endpoint_scan')
+    def test_upload_offline_endpoint_scan(self, upload_offline_endpoint_scan):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory_path = os.path.join(temp_dir, 'offline_scan_directory')
+            os.makedirs(directory_path)
+
+            # Act
+            result = self.runner.invoke(cli.main_cli,
+                                        [cli.upload_endpoint_scan.name,
+                                         directory_path])
+
+            # Assert
+            self.assertEqual(result.exit_code, 0, result.exception)
+            self.assertTrue(upload_offline_endpoint_scan.called)
+            upload_offline_endpoint_scan.assert_called_once_with(offline_scan_directory=directory_path, force=False)
+
+
+    @patch('intezer_analyze_cli.commands.upload_offline_endpoint_scan')
+    def test_upload_offline_endpoint_scan_with_force(self, upload_offline_endpoint_scan):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory_path = os.path.join(temp_dir, 'offline_scan_directory')
+            os.makedirs(directory_path)
+
+
+            # Act
+            result = self.runner.invoke(cli.main_cli,
+                                        [cli.upload_endpoint_scan.name,
+                                         directory_path, '--force'])
+
+            # Assert
+            self.assertEqual(result.exit_code, 0, result.exception)
+            self.assertTrue(upload_offline_endpoint_scan.called)
+            upload_offline_endpoint_scan.assert_called_once_with(offline_scan_directory=directory_path, force=True)
+
+    @patch('intezer_analyze_cli.commands.upload_multiple_offline_endpoint_scans')
+    def test_upload_multiple_offline_endpoint_scans(self, upload_multiple_offline_endpoint_scans):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            directory_path = os.path.join(temp_dir, 'offline_scan_directory')
+            os.makedirs(directory_path)
+            # Act
+            result = self.runner.invoke(cli.main_cli,
+                                        [cli.upload_endpoint_scans_in_directory.name,
+                                         directory_path])
+
+            # Assert
+            self.assertEqual(result.exit_code, 0, result.exception)
+            self.assertTrue(upload_multiple_offline_endpoint_scans.called)
+            upload_multiple_offline_endpoint_scans.assert_called_once_with(offline_scans_root_directory=directory_path,
+                                                                           force=False)
+    @patch('intezer_analyze_cli.commands.upload_multiple_offline_endpoint_scans')
+    def test_upload_multiple_offline_endpoint_scans_force(self, upload_multiple_offline_endpoint_scans):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Arrange
+            directory_path = os.path.join(temp_dir, 'offline_scan_directory')
+            os.makedirs(directory_path)
+
+            # Act
+            result = self.runner.invoke(cli.main_cli,
+                                        [cli.upload_endpoint_scans_in_directory.name,
+                                         directory_path, '--force'])
+
+            # Assert
+            self.assertEqual(result.exit_code, 0, result.exception)
+            self.assertTrue(upload_multiple_offline_endpoint_scans.called)
+            upload_multiple_offline_endpoint_scans.assert_called_once_with(offline_scans_root_directory=directory_path,
+                                                                           force=True)
 class CliIndexSpec(CliSpec):
     def setUp(self):
         super(CliIndexSpec, self).setUp()
@@ -166,7 +245,7 @@ class CliIndexSpec(CliSpec):
         index_as = 'trusted'
 
         # Act
-        result = self.runner.invoke(cli.main_cli, [cli.index.name, file_path, '--index-as=trusted'])
+        result = self.runner.invoke(cli.main_cli, [cli.index.name, file_path, f'--index-as={index_as}'])
 
         # Assert
         self.assertEqual(result.exit_code, 0, result.exception)
@@ -182,7 +261,7 @@ class CliIndexSpec(CliSpec):
         index_as = 'trusted'
 
         # Act
-        result = self.runner.invoke(cli.main_cli, [cli.index.name, directory_path, '--index-as=trusted'])
+        result = self.runner.invoke(cli.main_cli, [cli.index.name, directory_path, f'--index-as={index_as}'])
         # Assert
         self.assertEqual(result.exit_code, 0, result.exception)
         self.assertTrue(self.create_global_api_patcher_mock.called)
@@ -213,7 +292,7 @@ class CliIndexSpec(CliSpec):
         index_as = 'trusted'
 
         # Act
-        result = self.runner.invoke(cli.main_cli, [cli.index_by_list.name, file_path, '--index-as=trusted'])
+        result = self.runner.invoke(cli.main_cli, [cli.index_by_list.name, file_path, f'--index-as={index_as}'])
 
         # Assert
         self.assertEqual(result.exit_code, 0, result.exception)
@@ -229,7 +308,7 @@ class CliIndexSpec(CliSpec):
         index_as = 'malicious'
 
         # Act
-        result = self.runner.invoke(cli.main_cli, [cli.index_by_list.name, file_path, '--index-as=malicious'])
+        result = self.runner.invoke(cli.main_cli, [cli.index_by_list.name, file_path, f'--index-as={index_as}'])
 
         # Assert
         self.assertEqual(result.exit_code, 0, result.exception)
@@ -242,7 +321,7 @@ class CliIndexSpec(CliSpec):
         index_as = 'wrong_index_name'
 
         # Act
-        result = self.runner.invoke(cli.main_cli, [cli.index_by_list.name, file_path, '--index-as=wrong_index_name'])
+        result = self.runner.invoke(cli.main_cli, [cli.index_by_list.name, file_path, f'--index-as={index_as}'])
 
         # Assert
         self.assertEqual(result.exit_code, 2, result.exception)

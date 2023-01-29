@@ -6,7 +6,8 @@ import click
 from intezer_sdk import api
 from intezer_sdk import consts as sdk_consts
 from intezer_sdk import errors as sdk_errors
-from intezer_sdk.analysis import Analysis
+from intezer_sdk.analysis import FileAnalysis
+from intezer_sdk.endpoint_analysis import EndpointAnalysis
 from intezer_sdk.index import Index
 
 from intezer_analyze_cli import key_store
@@ -30,8 +31,8 @@ def login(api_key: str, api_url: str):
         key_store.store_api_key(api_key)
         click.echo('You have successfully logged in')
     except sdk_errors.InvalidApiKey:
-        click.echo('Invalid API key error, please contact us at support@intezer.com '
-                   'and attach the log file in {}'.format(utilities.log_file_path))
+        click.echo(f'Invalid API key error, please contact us at support@intezer.com '
+                   f'and attach the log file in {utilities.log_file_path}')
         raise click.Abort()
 
 
@@ -44,19 +45,19 @@ def analyze_file_command(file_path: str,
         return
 
     try:
-        analysis = Analysis(file_path=file_path,
-                            code_item_type=code_item_type,
-                            disable_dynamic_unpacking=disable_dynamic_unpacking,
-                            disable_static_unpacking=disable_static_unpacking)
+        analysis = FileAnalysis(file_path=file_path,
+                                code_item_type=code_item_type,
+                                disable_dynamic_unpacking=disable_dynamic_unpacking,
+                                disable_static_unpacking=disable_static_unpacking)
         analysis.send()
         if default_config.is_cloud:
             click.echo(
-                'Analysis created. In order to check its result, go to: {}/{}'.format(default_config.analyses_url,
-                                                                                      analysis.analysis_id))
+                f'Analysis created. In order to check its result, go to: '
+                f'{default_config.analyses_url}/{analysis.analysis_id}')
         else:
             click.echo('Analysis created. In order to check its result go to Intezer Analyze history page')
     except sdk_errors.IntezerError as e:
-        click.echo('Analyze error: {}'.format(e))
+        click.echo(f'Analyze error: {e}')
 
 
 def analyze_directory_command(path: str,
@@ -87,10 +88,10 @@ def analyze_directory_command(path: str,
                     unsupported_number += 1
                 else:
                     try:
-                        Analysis(file_path=file_path,
-                                 code_item_type=code_item_type,
-                                 disable_dynamic_unpacking=disable_dynamic_unpacking,
-                                 disable_static_unpacking=disable_static_unpacking).send()
+                        FileAnalysis(file_path=file_path,
+                                     code_item_type=code_item_type,
+                                     disable_dynamic_unpacking=disable_dynamic_unpacking,
+                                     disable_static_unpacking=disable_static_unpacking).send()
                         success_number += 1
                     except sdk_errors.IntezerError as ex:
                         # We cannot continue analyzing the directory if the account is out of quota
@@ -108,19 +109,18 @@ def analyze_directory_command(path: str,
 
     if success_number != 0:
         if default_config.is_cloud:
-            click.echo('{} analysis created. In order to check their results, go to: {}'.format(
-                success_number,
-                default_config.analyses_url)
-            )
+            click.echo(f'{success_number} analysis created. In order to check their results, go to: '
+                       f'{default_config.analyses_url}'
+                       )
         else:
-            click.echo('{} analysis created. In order to check their results '
-                       'go to Intezer Analyze history page'.format(success_number))
+            click.echo(f'{success_number} analysis created. '
+                       f'In order to check their results go to Intezer Analyze history page')
 
     if failed_number != 0:
-        click.echo('{} analysis failed'.format(failed_number))
+        click.echo(f'{failed_number} analysis failed')
 
     if unsupported_number != 0:
-        click.echo('{} unsupported files'.format(unsupported_number))
+        click.echo(f'{unsupported_number} unsupported files')
 
 
 def analyze_by_txt_file_command(path: str):
@@ -132,22 +132,21 @@ def analyze_by_txt_file_command(path: str):
                                width=0) as progressbar:
             for file_hash in hashes:
                 try:
-                    Analysis(file_hash=file_hash).send()
+                    FileAnalysis(file_hash=file_hash).send()
                 except sdk_errors.HashDoesNotExistError:
-                    click.echo('Hash: {} does not exist in the system'.format(file_hash))
+                    click.echo(f'Hash: {file_hash} does not exist in the system')
                 except sdk_errors.IntezerError:
-                    click.echo('Error occurred with hash: {}'.format(file_hash))
+                    click.echo(f'Error occurred with hash: {file_hash}')
                 progressbar.update(1)
 
             if default_config.is_cloud:
-                click.echo('analysis created. In order to check their results, go to: {}'
-                           .format(default_config.analyses_url))
+                click.echo(f'analysis created. In order to check their results, go to: {default_config.analyses_url}')
             else:
                 click.echo(
                     'analysis created. In order to check their results go to Intezer Analyze history page')
     except IOError:
-        click.echo('No read permissions for {}'.format(path))
-        click.Abort()
+        click.echo(f'No read permissions for {path}')
+        raise click.Abort()
 
 
 def index_by_txt_file_command(path: str, index_as: str, family_name: str):
@@ -178,22 +177,21 @@ def index_by_txt_file_command(path: str, index_as: str, family_name: str):
                 try:
                     index_operation.wait_for_completion()
                 except sdk_errors.IntezerError as e:
-                    index_exceptions.append('Failed to index hash: {} error: {}'.format(sha256, e))
+                    index_exceptions.append(f'Failed to index hash: {sha256} error: {e}')
                 except sdk_errors.IndexFailed:
-                    index_exceptions.append('Failed to index hash: {} error: {}'.format(sha256, e))
+                    index_exceptions.append(f'Failed to index hash: {sha256} error: {e}')
                 index_progress.update(1)
 
         echo_exceptions(index_exceptions)
 
         if default_config.is_cloud:
-            click.echo('Index updated. In order to check their results, go to: {}'
-                       .format(default_config.index_results_url))
+            click.echo(f'Index updated. In order to check their results, go to: {default_config.index_results_url}')
         else:
             click.echo(
                 'Index updated. In order to check the results go to Private Indexed Files under Analysis Reports')
     except IOError:
-        click.echo('No read permissions for {}'.format(path))
-        click.Abort()
+        click.echo(f'No read permissions for {path}')
+        raise click.Abort()
 
 
 def echo_exceptions(exceptions):
@@ -217,7 +215,7 @@ def index_hash_command(sha256: str, index_as: str, family_name: Optional[str]):
         index_operation.send(wait=False)
         return index_operation, None
     except sdk_errors.IntezerError as e:
-        return None, 'Index error: {} Error occurred with hash: {}'.format(e, sha256)
+        return None, f'Index error: {e} Error occurred with hash: {sha256}'
 
 
 def index_file_command(file_path: str, index_as: str, family_name: Optional[str]):
@@ -227,9 +225,9 @@ def index_file_command(file_path: str, index_as: str, family_name: Optional[str]
     try:
         index = Index(index_as=sdk_consts.IndexType.from_str(index_as), file_path=file_path, family_name=family_name)
         index.send(wait=True)
-        click.echo('Finish index: {} with status: {}'.format(index.index_id, index.status))
+        click.echo(f'Finish index: {index.index_id} with status: {index.status}')
     except sdk_errors.IntezerError as e:
-        click.echo('Index error: {}'.format(e))
+        click.echo(f'Index error: {e}')
 
 
 def index_directory_command(directory_path: str,
@@ -253,7 +251,7 @@ def index_directory_command(directory_path: str,
                 file_path = os.path.join(root, file_name)
 
                 if not utilities.is_supported_file(file_path):
-                    click.echo('Could not open {} because it is not a supported file type'.format(file_name))
+                    click.echo(f'Could not open {file_name} because it is not a supported file type')
                     progressbar.update(1)
                     continue
 
@@ -264,16 +262,100 @@ def index_directory_command(directory_path: str,
                     index.send()
                     indexes_results.append({'file_name': file_name, 'index': index})
                 except sdk_errors.IntezerError:
-                    click.echo('error occurred during indexing of {}'.format(file_name))
+                    click.echo(f'error occurred during indexing of {file_name}')
                     progressbar.update(1)
 
             for index_result in indexes_results:
                 try:
                     index_result['index'].wait_for_completion()
-                    click.echo('Index: {} , File: {} , finished with status: {}'.format(index_result['index'].index_id,
-                                                                                        index_result['file_name'],
-                                                                                        index_result['index'].status))
+                    click.echo(f'Index: {index_result["index"].index_id} ,'
+                               f' File: {index_result["file_name"]} ,'
+                               f' finished with status: {index_result["index"].status}')
                     progressbar.update(1)
                 except Exception:
-                    click.echo('error occurred during indexing of {}'.format(index_result['file_name']))
+                    click.echo(f'error occurred during indexing of {index_result["file_name"]}')
                     progressbar.update(1)
+
+
+def upload_offline_endpoint_scan(offline_scan_directory: str, force: bool = False):
+    try:
+        if not force and _was_directory_already_sent(offline_scan_directory):
+            raise click.Abort()
+        endpoint_analysis = EndpointAnalysis(offline_scan_directory=offline_scan_directory)
+        endpoint_analysis.send(wait=False)
+        if not endpoint_analysis.analysis_id:
+            raise RuntimeError('Error encountered while sending offline scan, server did not return analysis id')
+        _create_analysis_id_file(offline_scan_directory, endpoint_analysis.analysis_id)
+
+        if default_config.is_cloud:
+            click.echo(
+                f'Analysis created. In order to check its result, go to:'
+                f' {default_config.endpoint_analyses_url}/{endpoint_analysis.analysis_id}')
+        else:
+            click.echo('Analysis created. In order to check its result go to Intezer Analyze history page')
+    except sdk_errors.IntezerError as e:
+        click.echo(f'Analyze error: {e}')
+        raise
+    return endpoint_analysis.analysis_id
+
+
+def upload_multiple_offline_endpoint_scans(offline_scans_root_directory: str,
+                                           force: bool = False):
+    success_number = 0
+    failed_number = 0
+
+    directories = _get_scan_subdirectories(offline_scans_root_directory)
+
+    with click.progressbar(length=len(directories),
+                           label='Sending offline endpoint scans for analysis',
+                           show_pos=True) as progressbar:
+        for scan_dir in directories:
+            offline_scan_directory = os.path.join(offline_scans_root_directory, scan_dir)
+            try:
+                upload_offline_endpoint_scan(offline_scan_directory, force)
+                success_number += 1
+            except Exception as e:
+                logger.exception(f'Error while analyzing directory {scan_dir}: {str(e)}')
+                failed_number += 1
+            finally:
+                progressbar.update(1)
+
+    if success_number != 0:
+        click.echo(f'{success_number} offline endpoint scans were sent successfully')
+    if failed_number != 0:
+        click.echo(f'{failed_number} offline endpoint scans failed to send')
+
+
+def _get_scan_subdirectories(offline_scans_root_directory):
+    directories = [d for d in os.listdir(offline_scans_root_directory) if
+                   os.path.isdir(os.path.join(offline_scans_root_directory, d)) and
+                   not is_hidden(os.path.join(offline_scans_root_directory, d))]
+    for mandatory_directory in ('files', 'fileless', 'memory_modules'):
+        if mandatory_directory not in directories:
+            click.echo(f'Directory "{mandatory_directory}" is missing')
+            raise click.Abort()
+        directories.remove(mandatory_directory)
+    return directories
+
+
+def _was_directory_already_sent(path: str) -> bool:
+    try:
+        if os.path.isfile(os.path.join(path, 'analysis_id.txt')):
+            with open(os.path.join(path, 'analysis_id.txt')) as f:
+                analysis_id = f.read()
+            click.echo(f'Scan: {os.path.dirname(path)} has already been sent for analysis. '
+                       f'See: {default_config.endpoint_analyses_url}/{analysis_id}')
+            return True
+    except BaseException as e:
+        click.echo(f'Error while reading analysis_id.txt file in directory {os.path.dirname(path)}')
+        raise
+    return False
+
+
+def _create_analysis_id_file(directory: str, analysis_id: str):
+    try:
+        with open(os.path.join(directory, 'analysis_id.txt'), 'w') as f:
+            f.write(analysis_id)
+    except BaseException as e:
+        click.echo(f'Could not create analysis_id.txt file in {directory}')
+        raise

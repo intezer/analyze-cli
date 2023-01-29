@@ -7,6 +7,7 @@ class Config(object):
         self.api_url = 'https://analyze.intezer.com/api/'
         self.api_version = 'v2-0'
         self.analyses_url = 'https://analyze.intezer.com/analyses'
+        self.endpoint_analyses_url = 'https://analyze.intezer.com/endpoint-analyses'
         self.index_results_url = 'https://analyze.intezer.com/private-indexed-files'
 
         # Key Store
