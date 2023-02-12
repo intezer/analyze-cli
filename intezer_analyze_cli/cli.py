@@ -42,7 +42,7 @@ def create_global_api():
 
 
 @click.group(context_settings=dict(help_option_names=['-h', '--help'], max_content_width=120),
-             help='Intezer Labs Ltd. Intezer Analyze CLI {}'.format(__version__))
+             help=f'Intezer Labs Ltd. Intezer Analyze CLI {__version__}')
 def main_cli():
     pass
 

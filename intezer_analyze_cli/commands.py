@@ -135,8 +135,10 @@ def analyze_by_txt_file_command(path: str):
                     FileAnalysis(file_hash=file_hash).send()
                 except sdk_errors.HashDoesNotExistError:
                     click.echo(f'Hash: {file_hash} does not exist in the system')
+                    logger.info('Hash not exists', extra=dict(file_hash=file_hash))
                 except sdk_errors.IntezerError:
                     click.echo(f'Error occurred with hash: {file_hash}')
+                    logger.exception('Error occurred with hash', extra=dict(file_hash=file_hash))
                 progressbar.update(1)
 
             if default_config.is_cloud:
@@ -146,6 +148,7 @@ def analyze_by_txt_file_command(path: str):
                     'analysis created. In order to check their results go to Intezer Analyze history page')
     except IOError:
         click.echo(f'No read permissions for {path}')
+        logger.exception('Error reading hashes file', extra=dict(path=path))
         raise click.Abort()
 
 
@@ -178,8 +181,10 @@ def index_by_txt_file_command(path: str, index_as: str, family_name: str):
                     index_operation.wait_for_completion()
                 except sdk_errors.IntezerError as e:
                     index_exceptions.append(f'Failed to index hash: {sha256} error: {e}')
+                    logger.exception('Failed to index hash', extra=dict(sha256=sha256))
                 except sdk_errors.IndexFailed:
                     index_exceptions.append(f'Failed to index hash: {sha256} error: {e}')
+                    logger.exception('Failed to index hash', extra=dict(sha256=sha256))
                 index_progress.update(1)
 
         echo_exceptions(index_exceptions)
@@ -191,6 +196,7 @@ def index_by_txt_file_command(path: str, index_as: str, family_name: str):
                 'Index updated. In order to check the results go to Private Indexed Files under Analysis Reports')
     except IOError:
         click.echo(f'No read permissions for {path}')
+        logger.exception('Error reading hashes file', extra=dict(path=path))
         raise click.Abort()
 
 
@@ -215,6 +221,7 @@ def index_hash_command(sha256: str, index_as: str, family_name: Optional[str]):
         index_operation.send(wait=False)
         return index_operation, None
     except sdk_errors.IntezerError as e:
+        logger.exception('Failed to index hash', extra=dict(sha256=sha256))
         return None, f'Index error: {e} Error occurred with hash: {sha256}'
 
 
@@ -227,6 +234,7 @@ def index_file_command(file_path: str, index_as: str, family_name: Optional[str]
         index.send(wait=True)
         click.echo(f'Finish index: {index.index_id} with status: {index.status}')
     except sdk_errors.IntezerError as e:
+        logger.exception('Failed to index hash', extra=dict(sha256=sha256))
         click.echo(f'Index error: {e}')
 
 
@@ -262,7 +270,8 @@ def index_directory_command(directory_path: str,
                     index.send()
                     indexes_results.append({'file_name': file_name, 'index': index})
                 except sdk_errors.IntezerError:
-                    click.echo(f'error occurred during indexing of {file_name}')
+                    logger.exception('Failed to index file', extra=dict(file_name=file_name))
+                    click.echo(f'Error occurred during indexing of {file_name}')
                     progressbar.update(1)
 
             for index_result in indexes_results:
@@ -273,7 +282,8 @@ def index_directory_command(directory_path: str,
                                f' finished with status: {index_result["index"].status}')
                     progressbar.update(1)
                 except Exception:
-                    click.echo(f'error occurred during indexing of {index_result["file_name"]}')
+                    logger.exception('Failed to index file', extra=dict(file_name=index_result['file_name']))
+                    click.echo(f'Error occurred during indexing of {index_result["file_name"]}')
                     progressbar.update(1)
 
 
@@ -295,6 +305,7 @@ def upload_offline_endpoint_scan(offline_scan_directory: str, force: bool = Fals
             click.echo('Analysis created. In order to check its result go to Intezer Analyze history page')
     except sdk_errors.IntezerError as e:
         click.echo(f'Analyze error: {e}')
+        logger.exception('Failed to analyze offline scan')
         raise
     return endpoint_analysis.analysis_id
 
@@ -346,7 +357,8 @@ def _was_directory_already_sent(path: str) -> bool:
             click.echo(f'Scan: {os.path.dirname(path)} has already been sent for analysis. '
                        f'See: {default_config.endpoint_analyses_url}/{analysis_id}')
             return True
-    except BaseException as e:
+    except Exception:
+        logger.exception('Error while reading analysis_id.txt file in directory', extra=dict(path=path))
         click.echo(f'Error while reading analysis_id.txt file in directory {os.path.dirname(path)}')
         raise
     return False
@@ -356,6 +368,7 @@ def _create_analysis_id_file(directory: str, analysis_id: str):
     try:
         with open(os.path.join(directory, 'analysis_id.txt'), 'w') as f:
             f.write(analysis_id)
-    except BaseException as e:
+    except Exception:
+        logger.exception('Could not create analysis_id.txt file', extra=dict(directory=directory))
         click.echo(f'Could not create analysis_id.txt file in {directory}')
         raise
