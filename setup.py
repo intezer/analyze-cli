@@ -23,7 +23,7 @@ install_requires = [
 ]
 tests_require = [
     'pytest==6.1.2',
-    'responses==0.13.2'
+    'responses==0.17.0'
 ]
 
 with open('README.md') as f:
@@ -40,6 +40,7 @@ setup(
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
         'Programming Language :: Python :: 3.10'
+        'Programming Language :: Python :: 3.11'
     ],
     keywords='intezer',
     packages=['intezer_analyze_cli'],

@@ -15,7 +15,7 @@ from intezer_analyze_cli import utilities
 from intezer_analyze_cli.config import default_config
 from intezer_analyze_cli.utilities import is_hidden
 
-logger = logging.getLogger('intezer_client')
+logger = logging.getLogger('intezer_cli')
 
 
 def login(api_key: str, api_url: str):
@@ -27,7 +27,7 @@ def login(api_key: str, api_url: str):
             key_store.delete_default_url()
 
         api.set_global_api(api_key, default_config.api_version, api_url)
-        api.get_global_api().set_session()
+        api.get_global_api().authenticate()
         key_store.store_api_key(api_key)
         click.echo('You have successfully logged in')
     except sdk_errors.InvalidApiKey:

@@ -1,7 +1,6 @@
 import csv
 import logging
 import os
-import tempfile
 import zipfile
 
 import click
@@ -41,8 +40,7 @@ class ExtraFormatter(logging.Formatter):
         extra = get_log_record_extra_fields(record)
 
         if extra:
-            extra_string = \
-                ', '.join(['{}: {}'.format(field, value) for field, value in sorted(extra.items())])
+            extra_string = ', '.join([f'{field}: {value}' for field, value in sorted(extra.items())])
         else:
             extra_string = ''
 
@@ -53,16 +51,15 @@ class ExtraFormatter(logging.Formatter):
 
 def init_log(logger_name, debug_mode=False):
     global log_file_path
-    logger = logging.getLogger(logger_name)
-    logger.setLevel(logging.DEBUG)
+    cli_logger = logging.getLogger(logger_name)
+    cli_logger.setLevel(logging.DEBUG)
 
     # file
     try:
-        tempdir = tempfile.mkdtemp('intezer-logs')
-        log_file_path = os.path.join(tempdir, 'intezer-analyze.log')
+        current_directory = os.getcwd()
+        log_file_path = os.path.join(current_directory, 'intezer-analyze-cli.log')
         handler = logging.FileHandler(log_file_path)
-        formatter = \
-            ExtraFormatter('%(asctime)s %(levelname)-8s %(module)s line: %(lineno)d: %(message)s. %(extra)s')
+        formatter = ExtraFormatter('%(asctime)s %(levelname)-8s %(module)s line: %(lineno)d: %(message)s. %(extra)s')
 
     except Exception:
         print('Failed to create logs directory, prints all logs to the screen')
@@ -71,7 +68,10 @@ def init_log(logger_name, debug_mode=False):
 
     handler.setFormatter(formatter)
     handler.setLevel(logging.DEBUG)
-    logger.addHandler(handler)
+    cli_logger.addHandler(handler)
+    sdk_logger = logging.getLogger('intezer_sdk')
+    sdk_logger.setLevel(logging.INFO)
+    sdk_logger.addHandler(handler)
 
     # stderr
     if debug_mode and handler is not logging.StreamHandler:
@@ -79,7 +79,9 @@ def init_log(logger_name, debug_mode=False):
         console_handler = logging.StreamHandler()
         console_handler.setFormatter(console_formatter)
         console_handler.setLevel(logging.DEBUG)
-        logger.addHandler(console_handler)
+        cli_logger.addHandler(console_handler)
+        sdk_logger.addHandler(console_handler)
+        sdk_logger.setLevel(logging.DEBUG)
 
 
 def is_supported_file(file_path):
