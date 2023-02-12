@@ -1,3 +1,7 @@
+1.9.1
+-----
+- Move the log file to the current working directory
+
 1.9
 -----
 - Support for uploading offline endpoint scans

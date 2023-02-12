@@ -3,7 +3,7 @@ import os
 
 from intezer_analyze_cli.config import default_config as config_
 
-logger = logging.getLogger('intezer_client')
+logger = logging.getLogger('intezer_cli')
 
 
 def get_key_file_path(key_file_name):

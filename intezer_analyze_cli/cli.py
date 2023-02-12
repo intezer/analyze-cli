@@ -13,8 +13,8 @@ from intezer_analyze_cli import key_store
 from intezer_analyze_cli import utilities
 from intezer_analyze_cli.config import default_config
 
-utilities.init_log('intezer_client')
-logger = logging.getLogger('intezer_client')
+utilities.init_log('intezer_cli', os.environ.get('INTEZER_DEBUG') == '1')
+logger = logging.getLogger('intezer_cli')
 
 
 def create_global_api():
@@ -32,12 +32,12 @@ def create_global_api():
             default_config.is_cloud = False
 
         api.set_global_api(api_key, default_config.api_version, default_config.api_url)
-        sdk_consts.USER_AGENT += '/CLI-{}'.format(__version__)
+        sdk_consts.USER_AGENT += f'/CLI-{__version__}'
 
     except sdk_errors.InvalidApiKey:
         logger.exception('Invalid api key error')
         click.echo('Invalid API key error, please contact us at support@intezer.com '
-                   'and attach the log file in {}'.format(utilities.log_file_path))
+                   f'and attach the log file in {utilities.log_file_path}')
         raise click.Abort()
 
 
@@ -75,7 +75,7 @@ def login(api_key: str, api_url: str):
     except Exception:
         logger.exception('Unexpected error occurred')
         click.echo('Unexpected error occurred, please contact us at support@intezer.com '
-                   'and attach the log file in {}'.format(utilities.log_file_path))
+                   f'and attach the log file in {utilities.log_file_path}')
 
 
 @main_cli.command('analyze', short_help='Send a file or a directory for analysis')
@@ -132,7 +132,7 @@ def analyze(path: str,
     except Exception:
         logger.exception('Unexpected error occurred')
         click.echo('Unexpected error occurred, please contact us at support@intezer.com '
-                   'and attach the log file in {}'.format(utilities.log_file_path))
+                   f'and attach the log file in {utilities.log_file_path}')
 
 
 @main_cli.command('analyze_by_list', short_help='Send a text file with list of hashes')
@@ -157,7 +157,7 @@ def analyze_by_list(path):
     except Exception:
         logger.exception('Unexpected error occurred')
         click.echo('Unexpected error occurred, please contact us at support@intezer.com '
-                   'and attach the log file in {}'.format(utilities.log_file_path))
+                   f'and attach the log file in {utilities.log_file_path}')
 
 
 @main_cli.command('index_by_list', short_help='Send a text file with list of hashes, verdict, family name if malicious')
@@ -191,7 +191,7 @@ def index_by_list(path: str, index_as: str, family_name: str):
     except Exception:
         logger.exception('Unexpected error occurred')
         click.echo('Unexpected error occurred, please contact us at support@intezer.com '
-                   'and attach the log file in {}'.format(utilities.log_file_path))
+                   f'and attach the log file in {utilities.log_file_path}')
 
 
 @main_cli.command('index', short_help='index a file or a directory')
@@ -236,7 +236,7 @@ def index(path: str, index_as: str, family_name: str, ignore_directory_count_lim
     except Exception:
         logger.exception('Unexpected error occurred')
         click.echo('Unexpected error occurred, please contact us at support@intezer.com '
-                   'and attach the log file in {}'.format(utilities.log_file_path))
+                   f'and attach the log file in {utilities.log_file_path}')
 
 
 @main_cli.command('upload_endpoint_scan', short_help='upload a directory with offline endpoint scan results')
@@ -263,7 +263,7 @@ def upload_endpoint_scan(offline_scan_directory: str, force: bool):
     except Exception:
         logger.exception('Unexpected error occurred')
         click.echo('Unexpected error occurred, please contact us at support@intezer.com '
-                   'and attach the log file in {}'.format(utilities.log_file_path))
+                   f'and attach the log file in {utilities.log_file_path}')
 
 
 @main_cli.command('upload_endpoint_scans_in_directory',
@@ -291,7 +291,7 @@ def upload_endpoint_scans_in_directory(offline_scans_root_directory: str, force:
     except Exception:
         logger.exception('Unexpected error occurred')
         click.echo('Unexpected error occurred, please contact us at support@intezer.com '
-                   'and attach the log file in {}'.format(utilities.log_file_path))
+                   f'and attach the log file in {utilities.log_file_path}')
 
 
 if __name__ == '__main__':
@@ -299,5 +299,5 @@ if __name__ == '__main__':
         main_cli()
 
     except Exception as e:
-        logger.exception('Unexpected error occurred {}'.format(e))
+        logger.exception(f'Unexpected error occurred {e}')
         click.echo('Unexpected error occurred')

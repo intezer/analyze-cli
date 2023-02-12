@@ -3,7 +3,7 @@
 A cross-platform CLI tool which enables analyzing files with Intezer Analyze.
 
 # Prerequisites
-Python 3.5 and above
+Python 3.6 and above
 
 Python and pip should be available in your path
 
@@ -101,3 +101,7 @@ Send a file with hashes and verdict for indexing:
     $ intezer-analyze index_by_list ~/files/hashes.txt --index-as=malicious family_name
 
 For complete documentation please run `intezer-analyze index --help`
+
+# Troubleshooting
+The cli produce a log file named `intezer-analyze-cli.log` in the current working directory.
+To enable console output, set the environment variable `INTEZER_DEBUG=1`.
