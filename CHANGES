@@ -1,3 +1,7 @@
+1.9.2
+-----
+- Pin sdk to 1.15.2
+
 1.9.1
 -----
 - Move the log file to the current working directory
