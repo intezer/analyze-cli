@@ -102,6 +102,38 @@ Send a file with hashes and verdict for indexing:
 
 For complete documentation please run `intezer-analyze index --help`
 
+## Upload offline endpoint scan
+Upload an offline scan created by running the Intezer Endpoint Scanner with '-o' flag
+
+### Usage
+`intezer-analyze upload_endpoint_scan OFFLINE_SCAN_DIRECTORY`
+
+### Parameters
+OFFLINE_SCAN_DIRECTORY: Path to directory with offline endpoint scan results
+
+### Examples:
+Upload a directory with offline endpoint scan results:
+    
+    $ intezer-analyze upload_endpoint_scan /home/user/offline_scans/scan_MYPC_2019-01-01_00-00-00
+
+For complete documentation plrase run `intezer-analyze upload_endpoint_scan --help`
+
+## Upload multiple offline endpoint scans
+Upload multiple offline scans created by running the Intezer Endpoint Scanner with '-o' flag
+
+### Usage
+`intezer-analyze upload_endpoint_scans_in_directory OFFLINE_SCANS_ROOT_DIRECTORY`
+
+### Parameters
+OFFLINE_SCANS_ROOT_DIRECTORY: Path to root directory containing offline endpoint scan results
+
+### Examples:
+Upload a directory with offline endpoint scan results:
+    
+    $ intezer-analyze upload_endpoint_scans /home/user/offline_scans
+
+For complete documentation please run `intezer-analyze upload_endpoint_scans_in_directory --help`
+
 # Troubleshooting
 The cli produce a log file named `intezer-analyze-cli.log` in the current working directory.
 To enable console output, set the environment variable `INTEZER_DEBUG=1`.

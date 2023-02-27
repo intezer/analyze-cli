@@ -271,7 +271,7 @@ def upload_endpoint_scan(offline_scan_directory: str, force: bool):
 @click.argument('offline_scans_root_directory', type=click.Path(exists=True))
 @click.option('--force', is_flag=True, default=False, help='Upload scans even if they were already uploaded')
 def upload_endpoint_scans_in_directory(offline_scans_root_directory: str, force: bool = False):
-    """ Upload a subdirectories with offline endpoint scan results
+    """ Upload all subdirectories with offline endpoint scan results
 
 
     OFFLINE_SCANS_ROOT_DIRECTORY: Path to root directory containing offline endpoint scan results
@@ -280,7 +280,7 @@ def upload_endpoint_scans_in_directory(offline_scans_root_directory: str, force:
     Examples:
       upload a directory with offline endpoint scan results:
 
-      $ intezer-analyze upload_endpoint_scan_directories /path/to/endpoint_scan_results_root
+      $ intezer-analyze upload_endpoint_scans_in_directory /path/to/endpoint_scan_results_root
     """
     try:
         create_global_api()
