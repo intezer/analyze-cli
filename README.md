@@ -12,6 +12,9 @@ Python and pip should be available in your path
 
 # Usage
 
+## Proxies
+The CLI supports proxies. To use a proxy, set the environment variable `HTTP_PROXY` or `HTTPS_PROXY` to the proxy address.
+
 ## Login
 To begin using the cli, first you should login with your API key:
 
