@@ -50,12 +50,11 @@ def analyze_file_command(file_path: str,
                                 disable_dynamic_unpacking=disable_dynamic_unpacking,
                                 disable_static_unpacking=disable_static_unpacking)
         analysis.send()
-        if default_config.is_cloud:
-            click.echo(
-                f'Analysis created. In order to check its result, go to: '
-                f'{default_config.analyses_url}/{analysis.analysis_id}')
-        else:
-            click.echo('Analysis created. In order to check its result go to Intezer Analyze history page')
+        analysis_page_url = default_config.file_analysis_url_template.format(
+            system_url=default_config.api_url.replace('/api/', ''),
+            analysis_id=analysis.analysis_id
+        )
+        click.echo(f'Analysis created. In order to check its result, go to: {analysis_page_url}')
     except sdk_errors.IntezerError as e:
         click.echo(f'Analyze error: {e}')
 
@@ -108,13 +107,11 @@ def analyze_directory_command(path: str,
                 progressbar.update(1)
 
     if success_number != 0:
-        if default_config.is_cloud:
-            click.echo(f'{success_number} analysis created. In order to check their results, go to: '
-                       f'{default_config.analyses_url}'
-                       )
-        else:
-            click.echo(f'{success_number} analysis created. '
-                       f'In order to check their results go to Intezer Analyze history page')
+        analyses_page_url = default_config.history_page_url_template.format(
+            system_url=default_config.api_url.replace('/api/', ''),
+            tab_name=default_config.file_analyses_tab_name
+        )
+        click.echo(f'{success_number} analysis created. In order to check their results, go to: {analyses_page_url}')
 
     if failed_number != 0:
         click.echo(f'{failed_number} analysis failed')
@@ -140,12 +137,11 @@ def analyze_by_txt_file_command(path: str):
                     click.echo(f'Error occurred with hash: {file_hash}')
                     logger.exception('Error occurred with hash', extra=dict(file_hash=file_hash))
                 progressbar.update(1)
-
-            if default_config.is_cloud:
-                click.echo(f'analysis created. In order to check their results, go to: {default_config.analyses_url}')
-            else:
-                click.echo(
-                    'analysis created. In order to check their results go to Intezer Analyze history page')
+            analyses_page_url = default_config.history_page_url_template.format(
+                system_url=default_config.api_url.replace('/api/', ''),
+                tab_name=default_config.file_analyses_tab_name
+            )
+            click.echo(f'analysis created. In order to check their results, go to: {analyses_page_url}')
     except IOError:
         click.echo(f'No read permissions for {path}')
         logger.exception('Error reading hashes file', extra=dict(path=path))
@@ -189,11 +185,12 @@ def index_by_txt_file_command(path: str, index_as: str, family_name: str):
 
         echo_exceptions(index_exceptions)
 
-        if default_config.is_cloud:
-            click.echo(f'Index updated. In order to check their results, go to: {default_config.index_results_url}')
-        else:
-            click.echo(
-                'Index updated. In order to check the results go to Private Indexed Files under Analysis Reports')
+        private_index_page_url = default_config.history_page_url_template.format(
+            system_url=default_config.api_url.replace('/api/', ''),
+            tab_name=default_config.index_results_tab_name
+        )
+        click.echo(f'Index updated. In order to check their results, go to: {private_index_page_url}')
+
     except IOError:
         click.echo(f'No read permissions for {path}')
         logger.exception('Error reading hashes file', extra=dict(path=path))
@@ -234,7 +231,7 @@ def index_file_command(file_path: str, index_as: str, family_name: Optional[str]
         index.send(wait=True)
         click.echo(f'Finish index: {index.index_id} with status: {index.status}')
     except sdk_errors.IntezerError as e:
-        logger.exception('Failed to index hash', extra=dict(sha256=sha256))
+        logger.exception('Failed to index file', extra=dict(file_path=file_path))
         click.echo(f'Index error: {e}')
 
 
@@ -297,12 +294,13 @@ def upload_offline_endpoint_scan(offline_scan_directory: str, force: bool = Fals
             raise RuntimeError('Error encountered while sending offline scan, server did not return analysis id')
         _create_analysis_id_file(offline_scan_directory, endpoint_analysis.analysis_id)
 
-        if default_config.is_cloud:
-            click.echo(
-                f'Analysis created. In order to check its result, go to:'
-                f' {default_config.endpoint_analyses_url}/{endpoint_analysis.analysis_id}')
-        else:
-            click.echo('Analysis created. In order to check its result go to Intezer Analyze history page')
+        endpoint_analysis_page_url = default_config.endpoint_analysis_url_template.format(
+            system_url=default_config.api_url.replace('/api/', ''),
+            endpoint_analysis_id=endpoint_analysis.analysis_id
+        )
+
+        click.echo(f'Analysis created. In order to check its result, go to: {endpoint_analysis_page_url}')
+
     except sdk_errors.IntezerError as e:
         click.echo(f'Analyze error: {e}')
         logger.exception('Failed to analyze offline scan')
@@ -332,7 +330,12 @@ def upload_multiple_offline_endpoint_scans(offline_scans_root_directory: str,
                 progressbar.update(1)
 
     if success_number != 0:
-        click.echo(f'{success_number} offline endpoint scans were sent successfully')
+        endpoint_analyses_page_url = default_config.history_page_url_template.format(
+            system_url=default_config.api_url.replace('/api/', ''),
+            tab_name=default_config.endpoint_analyses_tab_name
+        )
+        click.echo(
+            f'{success_number} analysis created. In order to check their results, go to: {endpoint_analyses_page_url}')
     if failed_number != 0:
         click.echo(f'{failed_number} offline endpoint scans failed to send')
 
@@ -354,8 +357,14 @@ def _was_directory_already_sent(path: str) -> bool:
         if os.path.isfile(os.path.join(path, 'analysis_id.txt')):
             with open(os.path.join(path, 'analysis_id.txt')) as f:
                 analysis_id = f.read()
+
+            endpoint_analysis_page_url = default_config.endpoint_analysis_url_template.format(
+                system_url=default_config.api_url.replace('/api/', ''),
+                endpoint_analysis_id=analysis_id
+            )
+
             click.echo(f'Scan: {os.path.dirname(path)} has already been sent for analysis. '
-                       f'See: {default_config.endpoint_analyses_url}/{analysis_id}')
+                       f'See: {endpoint_analysis_page_url}')
             return True
     except Exception:
         logger.exception('Error while reading analysis_id.txt file in directory', extra=dict(path=path))

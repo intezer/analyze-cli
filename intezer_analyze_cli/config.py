@@ -2,13 +2,19 @@ class Config(object):
     def __init__(self):
         # Client
         self.unusual_amount_in_dir = 1000
+        self.verify_ssl = True
 
         # Urls
         self.api_url = 'https://analyze.intezer.com/api/'
         self.api_version = 'v2-0'
-        self.analyses_url = 'https://analyze.intezer.com/analyses'
-        self.endpoint_analyses_url = 'https://analyze.intezer.com/endpoint-analyses'
-        self.index_results_url = 'https://analyze.intezer.com/private-indexed-files'
+        self.file_analyses_tab_name = 'file'
+        self.endpoint_analyses_tab_name = 'endpoint'
+        self.index_results_tab_name = 'private_index'
+
+        # URLs templates
+        self.history_page_url_template = '{system_url}/history?tab={tab_name}'
+        self.file_analysis_url_template = '{system_url}/analyses/{analysis_id}'
+        self.endpoint_analysis_url_template = '{system_url}/endpoint-analyses/{endpoint_analysis_id}'
 
         # Key Store
         self.key_dir_name = '.intezer'
