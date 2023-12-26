@@ -1,11 +1,14 @@
 import logging
 import os
+from io import BytesIO
 from typing import Optional
+from email.utils import parsedate_to_datetime
 
 import click
 from intezer_sdk import api
 from intezer_sdk import consts as sdk_consts
 from intezer_sdk import errors as sdk_errors
+from intezer_sdk.alerts import Alert
 from intezer_sdk.analysis import FileAnalysis
 from intezer_sdk.endpoint_analysis import EndpointAnalysis
 from intezer_sdk.index import Index
@@ -338,6 +341,78 @@ def upload_multiple_offline_endpoint_scans(offline_scans_root_directory: str,
             f'{success_number} analysis created. In order to check their results, go to: {endpoint_analyses_page_url}')
     if failed_number != 0:
         click.echo(f'{failed_number} offline endpoint scans failed to send')
+
+
+def send_phishing_emails_from_directory_command(path: str,
+                                                ignore_directory_count_limit: bool = False):
+    success_number = 0
+    failed_number = 0
+    unsupported_number = 0
+    emails_dates = []
+
+    for root, dirs, files in os.walk(path):
+        files = [f for f in files if not is_hidden(os.path.join(root, f))]
+        dirs[:] = [d for d in dirs if not is_hidden(os.path.join(root, d))]
+
+        number_of_files = len(files)
+        if not ignore_directory_count_limit:
+            utilities.check_should_continue_for_large_dir(number_of_files, default_config.unusual_amount_in_dir)
+        if not files:
+            continue
+
+        with click.progressbar(length=number_of_files,
+                               label='Sending files for analysis',
+                               show_pos=True) as progressbar:
+            for file_name in files:
+                email_path = os.path.join(root, file_name)
+                with open(email_path, 'rb') as email_file:
+                    binary_data = BytesIO(email_file.read())
+                is_eml, date = utilities.is_eml_file(binary_data)
+                if not is_eml:
+                    unsupported_number += 1
+                else:
+                    try:
+                        Alert.send_phishing_email(raw_email=binary_data)
+                        success_number += 1
+                        if date:
+                            try:
+                                timestamp = parsedate_to_datetime(date).timestamp()
+                                emails_dates.append(timestamp)
+                            except Exception:
+                                continue
+
+                    except sdk_errors.IntezerError as ex:
+                        # We cannot continue analyzing the directory if the account is out of quota
+                        if isinstance(ex, sdk_errors.InsufficientQuota):
+                            logger.error('Failed to analyze %s', email_path)
+                            raise
+
+                        logger.exception('Error while analyzing directory')
+                        failed_number += 1
+                    except ValueError:
+                        if not bool(binary_data.getvalue()):
+                            logger.exception('eml cannot be empty')
+                            unsupported_number += 1
+                        failed_number += 1
+                    except Exception:
+                        logger.exception('Failed to analyze %s', email_path)
+                        failed_number += 1
+
+                progressbar.update(1)
+
+    if success_number != 0:
+        alerts_page_url = default_config.phishing_alerts_by_time_template.format(
+            system_url=default_config.api_url.replace('/api/', ''),
+            start_time=int(min(emails_dates)),
+            end_time=int(max(emails_dates))
+        )
+        click.echo(f'{success_number} alerts created. In order to check their results, go to: {alerts_page_url}')
+
+    if failed_number != 0:
+        click.echo(f'{failed_number} scans failed')
+
+    if unsupported_number != 0:
+        click.echo(f'{unsupported_number} unsupported files')
 
 
 def _get_scan_subdirectories(offline_scans_root_directory):

@@ -196,3 +196,31 @@ class CommandEndpointAnalysisSpec(CliSpec):
 
             # Assert
             self.assertTrue(self.send_analyze_mock.call_count == 3)
+
+
+class CommandUploadPhishingSpec(CliSpec):
+    def setUp(self):
+        super(CommandUploadPhishingSpec, self).setUp()
+
+        create_global_api_patcher = patch('intezer_analyze_cli.commands.login')
+        self.create_global_api_patcher_mock = create_global_api_patcher.start()
+        self.addCleanup(create_global_api_patcher.stop)
+
+        key_store.get_stored_api_key = MagicMock(return_value='api_key')
+
+        send_phishing_patcher = patch('intezer_sdk.alerts.Alert.send_phishing_email')
+        self.send_phishing_mock = send_phishing_patcher.start()
+        self.addCleanup(send_phishing_patcher.stop)
+
+    def test_send_emal_files_from_directory(self):
+        # Arrange
+        create_global_api()
+        dir_name = Path(__file__).parent.parent.absolute()
+        file_path = os.path.join(dir_name, 'resources/emails_directory')
+
+        # Act
+        commands.send_phishing_emails_from_directory_command(file_path, True)
+
+        # Assert
+        self.assertEqual(self.send_phishing_mock.call_count, 2)
+
