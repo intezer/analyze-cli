@@ -369,34 +369,23 @@ def send_phishing_emails_from_directory_command(path: str,
                 is_eml, date = utilities.is_eml_file(binary_data)
                 if not is_eml:
                     unsupported_number += 1
-                else:
-                    try:
-                        Alert.send_phishing_email(raw_email=binary_data)
-                        success_number += 1
-                        if date:
-                            try:
-                                timestamp = parsedate_to_datetime(date).timestamp()
-                                emails_dates.append(timestamp)
-                            except Exception:
-                                continue
+                    continue
+                try:
+                    Alert.send_phishing_email(raw_email=binary_data)
+                    success_number += 1
+                    if date:
+                        try:
+                            timestamp = parsedate_to_datetime(date).timestamp()
+                            emails_dates.append(timestamp)
+                        except Exception:
+                            continue
 
-                    except sdk_errors.IntezerError as ex:
-                        # We cannot continue analyzing the directory if the account is out of quota
-                        if isinstance(ex, sdk_errors.InsufficientQuota):
-                            logger.error(f'Failed to analyze {email_path}')
-                            raise
-
-                        logger.exception('Error while analyzing directory')
-                        failed_number += 1
-                    except ValueError:
-                        if not bool(binary_data.getvalue()):
-                            logger.exception('eml cannot be empty')
-                            unsupported_number += 1
-                        else:
-                            failed_number += 1
-                    except Exception:
-                        logger.exception(f'Failed to analyze {email_path}')
-                        failed_number += 1
+                except sdk_errors.IntezerError as ex:
+                    logger.exception('Error while analyzing directory')
+                    failed_number += 1
+                except Exception:
+                    logger.exception(f'Failed to analyze {email_path}')
+                    failed_number += 1
 
                 progressbar.update(1)
 
