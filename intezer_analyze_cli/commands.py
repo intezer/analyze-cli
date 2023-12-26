@@ -369,32 +369,45 @@ def send_phishing_emails_from_directory_command(path: str,
                 is_eml, date = utilities.is_eml_file(binary_data)
                 if not is_eml:
                     unsupported_number += 1
-                    continue
-                try:
-                    Alert.send_phishing_email(raw_email=binary_data)
-                    success_number += 1
-                    if date:
-                        try:
-                            timestamp = parsedate_to_datetime(date).timestamp()
-                            emails_dates.append(timestamp)
-                        except Exception:
-                            continue
+                else:
+                    try:
+                        Alert.send_phishing_email(raw_email=binary_data)
+                        success_number += 1
+                        if date:
+                            try:
+                                timestamp = parsedate_to_datetime(date).timestamp()
+                                emails_dates.append(timestamp)
+                            except Exception:
+                                continue
 
-                except sdk_errors.IntezerError as ex:
-                    logger.exception('Error while analyzing directory')
-                    failed_number += 1
-                except Exception:
-                    logger.exception(f'Failed to analyze {email_path}')
-                    failed_number += 1
+                    except sdk_errors.IntezerError as ex:
+                        # We cannot continue analyzing the directory if the account is out of quota
+                        if isinstance(ex, sdk_errors.InsufficientQuota):
+                            logger.error(f'Failed to analyze {email_path}')
+                            raise
+
+                        logger.exception('Error while analyzing directory')
+                        failed_number += 1
+                    except ValueError:
+                        if not bool(binary_data.getvalue()):
+                            logger.exception('eml cannot be empty')
+                            unsupported_number += 1
+                        else:
+                            failed_number += 1
+                    except Exception:
+                        logger.exception(f'Failed to analyze {email_path}')
+                        failed_number += 1
 
                 progressbar.update(1)
 
     if success_number != 0:
         alerts_page_url = default_config.phishing_alerts_by_time_template.format(
-            system_url=default_config.api_url.replace('/api/', ''),
-            start_time=int(min(emails_dates)),
-            end_time=int(max(emails_dates))
+            system_url=default_config.api_url.replace('/api/', '')
         )
+        earliest_email_timestamp = int(min(emails_dates)) if emails_dates else None
+        latest_email_timestamp = int(max(emails_dates)) if emails_dates else None
+        if earliest_email_timestamp and latest_email_timestamp:
+            alerts_page_url = f'{alerts_page_url}&start_time={earliest_email_timestamp}&end_time={latest_email_timestamp}'
         click.echo(f'{success_number} alerts created. In order to check their results, go to: {alerts_page_url}')
 
     if failed_number != 0:
