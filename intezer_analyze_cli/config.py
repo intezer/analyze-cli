@@ -15,7 +15,7 @@ class Config(object):
         self.history_page_url_template = '{system_url}/history?tab={tab_name}'
         self.file_analysis_url_template = '{system_url}/analyses/{analysis_id}'
         self.endpoint_analysis_url_template = '{system_url}/endpoint-analyses/{endpoint_analysis_id}'
-        self.phishing_alerts_by_time_template = '{system_url}/alerts/?start_time={start_time}&end_time={end_time}&sources=phishing_emails'
+        self.phishing_alerts_by_time_template = '{system_url}/alerts/?sources=phishing_emails'
 
         # Key Store
         self.key_dir_name = '.intezer'

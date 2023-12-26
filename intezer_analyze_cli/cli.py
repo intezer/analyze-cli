@@ -296,7 +296,7 @@ def upload_endpoint_scans_in_directory(offline_scans_root_directory: str, force:
 
 @main_cli.command('upload_emails_in_directory',
                   short_help='upload all subdirectories with .emal files')
-@click.argument('emails_root_directory', type=click.Path(exists=True))
+@click.argument('emails_root_directory', type=click.Path(exists=True, file_okay=False, dir_okay=True))
 @click.option('--ignore-directory-count-limit',
               is_flag=True,
               help='ignore directory count limit ({} files)'.format(default_config.unusual_amount_in_dir))
