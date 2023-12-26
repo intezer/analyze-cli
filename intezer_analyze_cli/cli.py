@@ -294,6 +294,36 @@ def upload_endpoint_scans_in_directory(offline_scans_root_directory: str, force:
                    f'and attach the log file in {utilities.log_file_path}')
 
 
+@main_cli.command('upload_emails_in_directory',
+                  short_help='upload all subdirectories with .emal files')
+@click.argument('emails_root_directory', type=click.Path(exists=True, file_okay=False, dir_okay=True))
+@click.option('--ignore-directory-count-limit',
+              is_flag=True,
+              help='ignore directory count limit ({} files)'.format(default_config.unusual_amount_in_dir))
+def upload_emails_in_directory(emails_root_directory: str, ignore_directory_count_limit: bool = False):
+    """ Upload all subdirectories with .eml files to analyze
+
+
+    UPLOAD_EMAILS_IN_DIRECTORY: Path to root directory containing the .eml fiels
+
+
+    Examples:
+      upload a directory with .eml files:
+
+      $ intezer-analyze upload_emails_in_directory /path/to/emails_root_directory
+    """
+    try:
+        create_global_api()
+        commands.send_phishing_emails_from_directory_command(path=emails_root_directory,
+                                                             ignore_directory_count_limit=ignore_directory_count_limit)
+    except click.Abort:
+        raise
+    except Exception:
+        logger.exception('Unexpected error occurred')
+        click.echo('Unexpected error occurred, please contact us at support@intezer.com '
+                   f'and attach the log file in {utilities.log_file_path}')
+
+
 if __name__ == '__main__':
     try:
         main_cli()

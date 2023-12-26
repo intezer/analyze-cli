@@ -1,7 +1,12 @@
 import csv
+import email
 import logging
 import os
 import zipfile
+from email import parser
+from typing import BinaryIO
+from typing import Tuple
+from typing import Union
 
 import click
 
@@ -102,6 +107,23 @@ def is_supported_file(file_path):
         is_supported = is_apk(file_path)
 
     return is_supported
+
+
+def is_eml_file(stream: BinaryIO) -> Tuple[bool, Union[str, None]]:
+    mail_parser = email.parser.BytesParser()
+    received_headers = ['To', 'Received']
+    required_headers = ['From', 'Date']
+    try:
+        parsed_email = mail_parser.parse(stream, headersonly=True)
+        date = parsed_email.get('Date')
+        return all(header in parsed_email for header in required_headers) and any(
+            header in parsed_email for header in received_headers
+        ), date
+    except Exception:
+        pass
+    finally:
+        stream.seek(0)
+    return False, None
 
 
 def is_apk(file_path):
