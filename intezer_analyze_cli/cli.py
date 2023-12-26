@@ -300,7 +300,7 @@ def upload_endpoint_scans_in_directory(offline_scans_root_directory: str, force:
 @click.option('--ignore-directory-count-limit',
               is_flag=True,
               help='ignore directory count limit ({} files)'.format(default_config.unusual_amount_in_dir))
-def upload_endpoint_scans_in_directory(emails_root_directory: str, ignore_directory_count_limit: bool = False):
+def upload_emails_in_directory(emails_root_directory: str, ignore_directory_count_limit: bool = False):
     """ Upload all subdirectories with .eml files to analyze
 
 
