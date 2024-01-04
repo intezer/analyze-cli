@@ -137,6 +137,15 @@ Upload a directory with offline endpoint scan results:
 
 For complete documentation please run `intezer-analyze upload_endpoint_scans_in_directory --help`
 
+## Upload all subdirectories with .eml files to analyze
+Upload a directory with .eml files
+
+### Parameter
+UPLOAD_EMAILS_IN_DIRECTORY: Path to root directory containing the .eml fiels
+
+### Examples:
+      $ intezer-analyze upload_emails_in_directory /path/to/emails_root_directory
+
 # Troubleshooting
 The cli produce a log file named `intezer-analyze-cli.log` in the current working directory.
 To enable console output, set the environment variable `INTEZER_DEBUG=1`.
