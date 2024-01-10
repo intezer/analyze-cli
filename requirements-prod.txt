@@ -1,2 +1,2 @@
 click==7.1.2
-intezer-sdk==1.19.7
+intezer-sdk==1.19.9
