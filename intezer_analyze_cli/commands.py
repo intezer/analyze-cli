@@ -324,6 +324,7 @@ def upload_multiple_offline_endpoint_scans(offline_scans_root_directory: str,
         for scan_dir in directories:
             offline_scan_directory = os.path.join(offline_scans_root_directory, scan_dir)
             try:
+                click.echo(f'Uploading scan: {scan_dir}')
                 upload_offline_endpoint_scan(offline_scan_directory, force)
                 success_number += 1
             except Exception as e:
