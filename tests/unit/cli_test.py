@@ -149,6 +149,7 @@ class CliAnalyzeSpec(CliSpec):
                                                                       code_item_type=None,
                                                                       ignore_directory_count_limit=False)
 
+
 class UploadOfflineEndpointScanSpec(CliSpec):
     def setUp(self):
         super(UploadOfflineEndpointScanSpec, self).setUp()
@@ -174,8 +175,9 @@ class UploadOfflineEndpointScanSpec(CliSpec):
             # Assert
             self.assertEqual(result.exit_code, 0, result.exception)
             self.assertTrue(upload_offline_endpoint_scan.called)
-            upload_offline_endpoint_scan.assert_called_once_with(offline_scan_directory=directory_path, force=False)
-
+            upload_offline_endpoint_scan.assert_called_once_with(offline_scan_directory=directory_path,
+                                                                 force=False,
+                                                                 max_concurrent_uploads=0)
 
     @patch('intezer_analyze_cli.commands.upload_offline_endpoint_scan')
     def test_upload_offline_endpoint_scan_with_force(self, upload_offline_endpoint_scan):
@@ -183,7 +185,6 @@ class UploadOfflineEndpointScanSpec(CliSpec):
         with tempfile.TemporaryDirectory() as temp_dir:
             directory_path = os.path.join(temp_dir, 'offline_scan_directory')
             os.makedirs(directory_path)
-
 
             # Act
             result = self.runner.invoke(cli.main_cli,
@@ -193,7 +194,9 @@ class UploadOfflineEndpointScanSpec(CliSpec):
             # Assert
             self.assertEqual(result.exit_code, 0, result.exception)
             self.assertTrue(upload_offline_endpoint_scan.called)
-            upload_offline_endpoint_scan.assert_called_once_with(offline_scan_directory=directory_path, force=True)
+            upload_offline_endpoint_scan.assert_called_once_with(offline_scan_directory=directory_path,
+                                                                 force=True,
+                                                                 max_concurrent_uploads=0)
 
     @patch('intezer_analyze_cli.commands.upload_multiple_offline_endpoint_scans')
     def test_upload_multiple_offline_endpoint_scans(self, upload_multiple_offline_endpoint_scans):
@@ -210,7 +213,8 @@ class UploadOfflineEndpointScanSpec(CliSpec):
             self.assertEqual(result.exit_code, 0, result.exception)
             self.assertTrue(upload_multiple_offline_endpoint_scans.called)
             upload_multiple_offline_endpoint_scans.assert_called_once_with(offline_scans_root_directory=directory_path,
-                                                                           force=False)
+                                                                           force=False,
+                                                                           max_concurrent_uploads=0)
 
     @patch('intezer_analyze_cli.commands.upload_multiple_offline_endpoint_scans')
     def test_upload_multiple_offline_endpoint_scans_force(self, upload_multiple_offline_endpoint_scans):
@@ -228,7 +232,8 @@ class UploadOfflineEndpointScanSpec(CliSpec):
             self.assertEqual(result.exit_code, 0, result.exception)
             self.assertTrue(upload_multiple_offline_endpoint_scans.called)
             upload_multiple_offline_endpoint_scans.assert_called_once_with(offline_scans_root_directory=directory_path,
-                                                                           force=True)
+                                                                           force=True,
+                                                                           max_concurrent_uploads=0)
 
 
 class UploadPhishingSpec(CliSpec):
@@ -266,6 +271,7 @@ class UploadPhishingSpec(CliSpec):
             self.assertTrue(send_phishing_emails_from_directory_command.called)
             send_phishing_emails_from_directory_command.assert_called_once_with(path=directory_path,
                                                                                 ignore_directory_count_limit=True)
+
 
 class CliIndexSpec(CliSpec):
     def setUp(self):
@@ -368,5 +374,3 @@ class CliIndexSpec(CliSpec):
         self.assertTrue(b'Try \'main-cli index_by_list -h\' for help.' in result.stdout_bytes)
         self.assertTrue(b'Error: Invalid value for \'--index-as\': invalid choice: wrong_index_name. '
                         b'(choose from malicious, trusted)' in result.stdout_bytes)
-
-
