@@ -242,7 +242,8 @@ def index(path: str, index_as: str, family_name: str, ignore_directory_count_lim
 @main_cli.command('upload_endpoint_scan', short_help='upload a directory with offline endpoint scan results')
 @click.argument('offline_scan_directory', type=click.Path(exists=True))
 @click.option('--force', is_flag=True, default=False, help='Upload scan even if it was already uploaded')
-def upload_endpoint_scan(offline_scan_directory: str, force: bool):
+@click.option('--max-concurrent', default=0, type=int, help='Maximum number of concurrent uploads.')
+def upload_endpoint_scan(offline_scan_directory: str, force: bool, max_concurrent: int):
     """ Upload a directory with offline endpoint scan results
 
 
@@ -256,8 +257,9 @@ def upload_endpoint_scan(offline_scan_directory: str, force: bool):
     """
     try:
         create_global_api()
-
-        commands.upload_offline_endpoint_scan(offline_scan_directory=offline_scan_directory, force=force)
+        commands.upload_offline_endpoint_scan(offline_scan_directory=offline_scan_directory,
+                                              force=force,
+                                              max_concurrent_uploads=max_concurrent)
     except click.Abort:
         raise
     except Exception:
@@ -270,7 +272,8 @@ def upload_endpoint_scan(offline_scan_directory: str, force: bool):
                   short_help='upload all subdirectories with offline endpoint scan results')
 @click.argument('offline_scans_root_directory', type=click.Path(exists=True))
 @click.option('--force', is_flag=True, default=False, help='Upload scans even if they were already uploaded')
-def upload_endpoint_scans_in_directory(offline_scans_root_directory: str, force: bool = False):
+@click.option('--max-concurrent', default=0, type=int, help='Maximum number of concurrent uploads.')
+def upload_endpoint_scans_in_directory(offline_scans_root_directory: str, force: bool = False, max_concurrent: int = 0):
     """ Upload all subdirectories with offline endpoint scan results
 
 
@@ -285,7 +288,8 @@ def upload_endpoint_scans_in_directory(offline_scans_root_directory: str, force:
     try:
         create_global_api()
         commands.upload_multiple_offline_endpoint_scans(offline_scans_root_directory=offline_scans_root_directory,
-                                                        force=force)
+                                                        force=force,
+                                                        max_concurrent_uploads=max_concurrent)
     except click.Abort:
         raise
     except Exception:
