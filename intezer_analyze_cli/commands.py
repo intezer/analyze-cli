@@ -415,13 +415,10 @@ def _get_scan_subdirectories(offline_scans_root_directory):
     directories = [d for d in os.listdir(offline_scans_root_directory) if
                    os.path.isdir(os.path.join(offline_scans_root_directory, d)) and
                    not is_hidden(os.path.join(offline_scans_root_directory, d))]
-    for mandatory_directory in ('files', 'fileless', 'memory_modules'):
-        if mandatory_directory not in directories:
-            click.echo(f'Directory "{mandatory_directory}" is missing')
-            raise click.Abort()
-        directories.remove(mandatory_directory)
+    for directory in ('files', 'fileless', 'memory_modules', 'logs'):
+        if directory in directories:
+            directories.remove(directory)
     return directories
-
 
 def _was_directory_already_sent(path: str) -> bool:
     try:
