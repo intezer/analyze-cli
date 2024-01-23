@@ -287,11 +287,13 @@ def index_directory_command(directory_path: str,
                     progressbar.update(1)
 
 
-def upload_offline_endpoint_scan(offline_scan_directory: str, force: bool = False):
+def upload_offline_endpoint_scan(offline_scan_directory: str, force: bool = False, max_concurrent_uploads: int = 0):
     try:
         if not force and _was_directory_already_sent(offline_scan_directory):
             raise click.Abort()
-        endpoint_analysis = EndpointAnalysis(offline_scan_directory=offline_scan_directory)
+        click.echo(f'Uploading: {os.path.basename(os.path.abspath(offline_scan_directory))}')
+        endpoint_analysis = EndpointAnalysis(offline_scan_directory=offline_scan_directory,
+                                             max_concurrent_uploads=max_concurrent_uploads)
         endpoint_analysis.send(wait=False)
         if not endpoint_analysis.analysis_id:
             raise RuntimeError('Error encountered while sending offline scan, server did not return analysis id')
@@ -312,7 +314,8 @@ def upload_offline_endpoint_scan(offline_scan_directory: str, force: bool = Fals
 
 
 def upload_multiple_offline_endpoint_scans(offline_scans_root_directory: str,
-                                           force: bool = False):
+                                           force: bool = False,
+                                           max_concurrent_uploads: int = 0):
     success_number = 0
     failed_number = 0
 
@@ -324,8 +327,9 @@ def upload_multiple_offline_endpoint_scans(offline_scans_root_directory: str,
         for scan_dir in directories:
             offline_scan_directory = os.path.join(offline_scans_root_directory, scan_dir)
             try:
-                click.echo(f'Uploading scan: {scan_dir}')
-                upload_offline_endpoint_scan(offline_scan_directory, force)
+                upload_offline_endpoint_scan(offline_scan_directory,
+                                             force,
+                                             max_concurrent_uploads=max_concurrent_uploads)
                 success_number += 1
             except Exception as e:
                 logger.exception(f'Error while analyzing directory {scan_dir}: {str(e)}')
@@ -411,13 +415,10 @@ def _get_scan_subdirectories(offline_scans_root_directory):
     directories = [d for d in os.listdir(offline_scans_root_directory) if
                    os.path.isdir(os.path.join(offline_scans_root_directory, d)) and
                    not is_hidden(os.path.join(offline_scans_root_directory, d))]
-    for mandatory_directory in ('files', 'fileless', 'memory_modules'):
-        if mandatory_directory not in directories:
-            click.echo(f'Directory "{mandatory_directory}" is missing')
-            raise click.Abort()
-        directories.remove(mandatory_directory)
+    for directory in ('files', 'fileless', 'memory_modules', 'logs'):
+        if directory in directories:
+            directories.remove(directory)
     return directories
-
 
 def _was_directory_already_sent(path: str) -> bool:
     try:

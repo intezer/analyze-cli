@@ -1,3 +1,8 @@
+1.10.4
+-----
+- Add "--max-concurrent" flag for uploading endpoint scans
+- bump intezer-SDK to 1.19.13
+
 1.10.3
 -----
 - Print scan directory names as they are uploaded in batch
