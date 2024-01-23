@@ -291,6 +291,7 @@ def upload_offline_endpoint_scan(offline_scan_directory: str, force: bool = Fals
     try:
         if not force and _was_directory_already_sent(offline_scan_directory):
             raise click.Abort()
+        click.echo(f'Uploading: {os.path.basename(os.path.abspath(scan_dir))}')
         endpoint_analysis = EndpointAnalysis(offline_scan_directory=offline_scan_directory)
         endpoint_analysis.send(wait=False)
         if not endpoint_analysis.analysis_id:
@@ -323,8 +324,7 @@ def upload_multiple_offline_endpoint_scans(offline_scans_root_directory: str,
                            show_pos=True) as progressbar:
         for scan_dir in directories:
             offline_scan_directory = os.path.join(offline_scans_root_directory, scan_dir)
-            try:
-                click.echo(f'Uploading scan: {scan_dir}')
+            try:            
                 upload_offline_endpoint_scan(offline_scan_directory, force)
                 success_number += 1
             except Exception as e:
