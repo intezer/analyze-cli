@@ -1,3 +1,7 @@
+1.10.5
+-----
+- Drop python 3.6 and python 3.7 support, add python 3.12 support
+
 1.10.4
 -----
 - Add "--max-concurrent" flag for uploading endpoint scans
