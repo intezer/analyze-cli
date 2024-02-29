@@ -52,6 +52,6 @@ setup(
     license='Apache License v2',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    python_requires='>=3.6',
+    python_requires='>=3.8',
     zip_safe=False
 )
