@@ -1,3 +1,7 @@
+1.11.1
+-----
+- Fix handling of large endpoint scan info files
+
 1.11
 -----
 - Drop python 3.6 and python 3.7 support, add python 3.12 support
