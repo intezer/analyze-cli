@@ -17,6 +17,25 @@ utilities.init_log('intezer_cli', os.environ.get('INTEZER_DEBUG') == '1')
 logger = logging.getLogger('intezer_cli')
 
 
+class AliasedGroup(click.Group):
+    def get_command(self, ctx, cmd_name):
+        rv = click.Group.get_command(self, ctx, cmd_name)
+        if rv is not None:
+            return rv
+        matches = [x for x in self.list_commands(ctx)
+                   if x.replace('-', '_') == cmd_name.replace('-', '_')]
+        if not matches:
+            return None
+        elif len(matches) == 1:
+            return click.Group.get_command(self, ctx, matches[0])
+        ctx.fail(f"Too many matches: {', '.join(sorted(matches))}")
+
+    def resolve_command(self, ctx, args):
+        # always return the full command name
+        _, cmd, args = super().resolve_command(ctx, args)
+        return cmd.name, cmd, args
+
+
 def create_global_api():
     try:
         api_key = key_store.get_stored_api_key()
@@ -41,7 +60,7 @@ def create_global_api():
         raise click.Abort()
 
 
-@click.group(context_settings=dict(help_option_names=['-h', '--help'], max_content_width=120),
+@click.group(cls=AliasedGroup, context_settings=dict(help_option_names=['-h', '--help'], max_content_width=120),
              help=f'Intezer Labs Ltd. Intezer Analyze CLI {__version__}')
 def main_cli():
     pass
@@ -135,7 +154,7 @@ def analyze(path: str,
                    f'and attach the log file in {utilities.log_file_path}')
 
 
-@main_cli.command('analyze_by_list', short_help='Send a text file with list of hashes')
+@main_cli.command('analyze-by-list', short_help='Send a text file with list of hashes')
 @click.argument('path', type=click.Path(exists=True, dir_okay=False))
 def analyze_by_list(path):
     """ Send a text file with hashes for analysis in Intezer Analyze.
@@ -146,7 +165,7 @@ def analyze_by_list(path):
     \b
     Examples:
       Send txt file with hashes for analysis:
-      $ intezer-analyze analyze_by_list ~/files/hashes.txt
+      $ intezer-analyze analyze-by-list ~/files/hashes.txt
     """
     try:
         create_global_api()
@@ -159,8 +178,7 @@ def analyze_by_list(path):
         click.echo('Unexpected error occurred, please contact us at support@intezer.com '
                    f'and attach the log file in {utilities.log_file_path}')
 
-
-@main_cli.command('index_by_list', short_help='Send a text file with list of hashes, verdict, family name if malicious')
+@main_cli.command('index-by-list', short_help='Send a text file with list of hashes, verdict, family name if malicious')
 @click.argument('path', type=click.Path(exists=True, dir_okay=False))
 @click.option('--index-as', type=click.Choice(['malicious', 'trusted'], case_sensitive=True))
 @click.argument('family_name', required=False, type=click.STRING, default=None)
@@ -173,7 +191,7 @@ def index_by_list(path: str, index_as: str, family_name: str):
 
     \b
     Examples:
-      $ intezer-analyze index_by_list ~/files/hashes.txt malicious family_name
+      $ intezer-analyze index-by-list ~/files/hashes.txt malicious family_name
       \b
     """
     try:
@@ -192,7 +210,6 @@ def index_by_list(path: str, index_as: str, family_name: str):
         logger.exception('Unexpected error occurred')
         click.echo('Unexpected error occurred, please contact us at support@intezer.com '
                    f'and attach the log file in {utilities.log_file_path}')
-
 
 @main_cli.command('index', short_help='index a file or a directory')
 @click.argument('path', type=click.Path(exists=True))
@@ -239,7 +256,7 @@ def index(path: str, index_as: str, family_name: str, ignore_directory_count_lim
                    f'and attach the log file in {utilities.log_file_path}')
 
 
-@main_cli.command('upload_endpoint_scan', short_help='upload a directory with offline endpoint scan results')
+@main_cli.command('upload-endpoint-scan', short_help='upload a directory with offline endpoint scan results')
 @click.argument('offline_scan_directory', type=click.Path(exists=True))
 @click.option('--force', is_flag=True, default=False, help='Upload scan even if it was already uploaded')
 @click.option('--max-concurrent', default=0, type=int, help='Maximum number of concurrent uploads.')
@@ -253,7 +270,7 @@ def upload_endpoint_scan(offline_scan_directory: str, force: bool, max_concurren
     Examples:
       upload a directory with offline endpoint scan results:
 
-      $ intezer-analyze upload_endpoint_scan /path/to/endpoint_scan_results
+      $ intezer-analyze upload-endpoint-scan /path/to/endpoint_scan_results
     """
     try:
         create_global_api()
@@ -267,9 +284,8 @@ def upload_endpoint_scan(offline_scan_directory: str, force: bool, max_concurren
         click.echo('Unexpected error occurred, please contact us at support@intezer.com '
                    f'and attach the log file in {utilities.log_file_path}')
 
-
-@main_cli.command('upload_endpoint_scans_in_directory',
-                  short_help='upload all subdirectories with offline endpoint scan results')
+@main_cli.command('upload-endpoint-scans-in-directory',
+              short_help='upload all subdirectories with offline endpoint scan results')
 @click.argument('offline_scans_root_directory', type=click.Path(exists=True))
 @click.option('--force', is_flag=True, default=False, help='Upload scans even if they were already uploaded')
 @click.option('--max-concurrent', default=0, type=int, help='Maximum number of concurrent uploads.')
@@ -283,7 +299,7 @@ def upload_endpoint_scans_in_directory(offline_scans_root_directory: str, force:
     Examples:
       upload a directory with offline endpoint scan results:
 
-      $ intezer-analyze upload_endpoint_scans_in_directory /path/to/endpoint_scan_results_root
+      $ intezer-analyze upload-endpoint-scans-in-directory /path/to/endpoint_scan_results_root
     """
     try:
         create_global_api()
@@ -297,9 +313,8 @@ def upload_endpoint_scans_in_directory(offline_scans_root_directory: str, force:
         click.echo('Unexpected error occurred, please contact us at support@intezer.com '
                    f'and attach the log file in {utilities.log_file_path}')
 
-
-@main_cli.command('upload_emails_in_directory',
-                  short_help='upload all subdirectories with .emal files')
+@main_cli.command('upload-emails-in-directory',
+              short_help='upload all subdirectories with .emal files')
 @click.argument('emails_root_directory', type=click.Path(exists=True, file_okay=False, dir_okay=True))
 @click.option('--ignore-directory-count-limit',
               is_flag=True,
@@ -314,7 +329,7 @@ def upload_emails_in_directory(emails_root_directory: str, ignore_directory_coun
     Examples:
       upload a directory with .eml files:
 
-      $ intezer-analyze upload_emails_in_directory /path/to/emails_root_directory
+      $ intezer-analyze upload-emails-in-directory /path/to/emails_root_directory
     """
     try:
         create_global_api()
@@ -327,11 +342,9 @@ def upload_emails_in_directory(emails_root_directory: str, ignore_directory_coun
         click.echo('Unexpected error occurred, please contact us at support@intezer.com '
                    f'and attach the log file in {utilities.log_file_path}')
 
-
 if __name__ == '__main__':
     try:
         main_cli()
-
     except Exception as e:
         logger.exception(f'Unexpected error occurred {e}')
         click.echo('Unexpected error occurred')

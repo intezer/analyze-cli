@@ -370,7 +370,7 @@ class CliIndexSpec(CliSpec):
 
         # Assert
         self.assertEqual(result.exit_code, 2, result.exception)
-        self.assertTrue(b'Usage: main-cli index_by_list [OPTIONS] PATH [FAMILY_NAME]' in result.stdout_bytes)
-        self.assertTrue(b'Try \'main-cli index_by_list -h\' for help.' in result.stdout_bytes)
+        self.assertTrue(b'Usage: main-cli index-by-list [OPTIONS] PATH [FAMILY_NAME]' in result.stdout_bytes)
+        self.assertTrue(b'Try \'main-cli index-by-list -h\' for help.' in result.stdout_bytes)
         self.assertTrue(b'Error: Invalid value for \'--index-as\': invalid choice: wrong_index_name. '
                         b'(choose from malicious, trusted)' in result.stdout_bytes)
