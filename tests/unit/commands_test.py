@@ -10,6 +10,7 @@ from unittest.mock import patch
 import click.exceptions
 import intezer_sdk.endpoint_analysis
 import intezer_sdk.base_analysis
+from intezer_sdk import errors as sdk_errors
 import intezer_analyze_cli.key_store as key_store
 from intezer_analyze_cli import commands
 from intezer_analyze_cli.cli import create_global_api
@@ -223,4 +224,170 @@ class CommandUploadPhishingSpec(CliSpec):
 
         # Assert
         self.assertEqual(self.send_phishing_mock.call_count, 2)
+
+
+class CommandAlertsSpec(CliSpec):
+    def setUp(self):
+        super(CommandAlertsSpec, self).setUp()
+
+        create_global_api_patcher = patch('intezer_analyze_cli.commands.login')
+        self.create_global_api_patcher_mock = create_global_api_patcher.start()
+        self.addCleanup(create_global_api_patcher.stop)
+
+        key_store.get_stored_api_key = MagicMock(return_value='api_key')
+
+    def test_notify_alerts_from_csv_command_handles_invalid_csv_no_id_column(self):
+        # Arrange
+        create_global_api()
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            csv_file_path = os.path.join(temp_dir, 'test_alerts_no_id.csv')
+            with open(csv_file_path, 'w') as f:
+                f.write('alert_id,environment\ntest-alert-1,production\n')
+
+            # Act & Assert
+            with patch('click.echo') as mock_echo:
+                with self.assertRaises(click.exceptions.Abort):
+                    commands.notify_alerts_from_csv_command(csv_file_path)
+                
+                mock_echo.assert_any_call('Unexpected error occurred while processing CSV file')
+
+    def test_notify_alerts_from_csv_command_handles_empty_csv_file(self):
+        # Arrange
+        create_global_api()
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            csv_file_path = os.path.join(temp_dir, 'test_alerts_empty.csv')
+            with open(csv_file_path, 'w') as f:
+                f.write('id,environment\n')  # Only header, no data
+
+            # Act & Assert
+            with patch('click.echo') as mock_echo:
+                with self.assertRaises(click.exceptions.Abort):
+                    commands.notify_alerts_from_csv_command(csv_file_path)
+                
+                mock_echo.assert_any_call('Unexpected error occurred while processing CSV file')
+
+    @patch('intezer_analyze_cli.commands.Alert')
+    @patch('click.progressbar')
+    def test_notify_alerts_from_csv_command_success(self, mock_progressbar, mock_alert_class):
+        # Arrange
+        create_global_api()
+        
+        # Mock progress bar
+        mock_progress_context = MagicMock()
+        mock_progressbar.return_value.__enter__.return_value = mock_progress_context
+        
+        # Mock Alert instances
+        mock_alert1 = MagicMock()
+        mock_alert1.notify.return_value = ['email', 'slack']
+        mock_alert2 = MagicMock()
+        mock_alert2.notify.return_value = ['email']
+        mock_alert_class.side_effect = [mock_alert1, mock_alert2]
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            csv_file_path = os.path.join(temp_dir, 'test_alerts.csv')
+            with open(csv_file_path, 'w') as f:
+                f.write('id,environment\ntest-alert-1,production\ntest-alert-2,staging\n')
+
+            # Act
+            with patch('click.echo') as mock_echo:
+                commands.notify_alerts_from_csv_command(csv_file_path)
+
+            # Assert
+            self.assertEqual(mock_alert_class.call_count, 2)
+            mock_alert_class.assert_any_call(alert_id='test-alert-1', environment='production')
+            mock_alert_class.assert_any_call(alert_id='test-alert-2', environment='staging')
+            
+            mock_alert1.notify.assert_called_once()
+            mock_alert2.notify.assert_called_once()
+            
+            # Check that success message was printed
+            mock_echo.assert_any_call('2 alerts notified successfully')
+
+    @patch('intezer_analyze_cli.commands.Alert')
+    @patch('click.progressbar')
+    def test_notify_alerts_from_csv_command_handles_no_channels(self, mock_progressbar, mock_alert_class):
+        # Arrange
+        create_global_api()
+        
+        # Mock progress bar
+        mock_progress_context = MagicMock()
+        mock_progressbar.return_value.__enter__.return_value = mock_progress_context
+        
+        # Mock Alert instance with no channels
+        mock_alert = MagicMock()
+        mock_alert.notify.return_value = []  # No channels configured
+        mock_alert_class.return_value = mock_alert
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            csv_file_path = os.path.join(temp_dir, 'test_alerts.csv')
+            with open(csv_file_path, 'w') as f:
+                f.write('id,environment\ntest-alert-1,production\n')
+
+            # Act
+            with patch('click.echo') as mock_echo:
+                commands.notify_alerts_from_csv_command(csv_file_path)
+
+            # Assert
+            mock_alert.notify.assert_called_once()
+            mock_echo.assert_any_call('1 alerts didn\'t triggered any notification')
+
+    @patch('intezer_analyze_cli.commands.Alert')
+    @patch('click.progressbar')
+    def test_notify_alerts_from_csv_command_handles_alert_not_found(self, mock_progressbar, mock_alert_class):
+        # Arrange
+        create_global_api()
+        
+        # Mock progress bar
+        mock_progress_context = MagicMock()
+        mock_progressbar.return_value.__enter__.return_value = mock_progress_context
+        
+        # Mock Alert instance that raises AlertNotFoundError
+        mock_alert = MagicMock()
+        mock_alert.notify.side_effect = sdk_errors.AlertNotFoundError('test-alert-1')
+        mock_alert_class.return_value = mock_alert
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            csv_file_path = os.path.join(temp_dir, 'test_alerts.csv')
+            with open(csv_file_path, 'w') as f:
+                f.write('id,environment\ntest-alert-1,production\n')
+
+            # Act
+            with patch('click.echo') as mock_echo:
+                commands.notify_alerts_from_csv_command(csv_file_path)
+
+            # Assert
+            mock_alert.notify.assert_called_once()
+            mock_echo.assert_any_call('Alert test-alert-1 not found')
+            mock_echo.assert_any_call('1 alerts failed to notify')
+
+    @patch('intezer_analyze_cli.commands.Alert')
+    @patch('click.progressbar')
+    def test_notify_alerts_from_csv_command_handles_alert_in_progress(self, mock_progressbar, mock_alert_class):
+        # Arrange
+        create_global_api()
+        
+        # Mock progress bar
+        mock_progress_context = MagicMock()
+        mock_progressbar.return_value.__enter__.return_value = mock_progress_context
+        
+        # Mock Alert instance that raises AlertInProgressError
+        mock_alert = MagicMock()
+        mock_alert.notify.side_effect = sdk_errors.AlertInProgressError('test-alert-1')
+        mock_alert_class.return_value = mock_alert
+        
+        with tempfile.TemporaryDirectory() as temp_dir:
+            csv_file_path = os.path.join(temp_dir, 'test_alerts.csv')
+            with open(csv_file_path, 'w') as f:
+                f.write('id,environment\ntest-alert-1,production\n')
+
+            # Act
+            with patch('click.echo') as mock_echo:
+                commands.notify_alerts_from_csv_command(csv_file_path)
+
+            # Assert
+            mock_alert.notify.assert_called_once()
+            mock_echo.assert_any_call('Alert test-alert-1 is still in progress')
+            mock_echo.assert_any_call('1 alerts failed to notify')
 

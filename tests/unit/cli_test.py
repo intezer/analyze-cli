@@ -273,6 +273,45 @@ class UploadPhishingSpec(CliSpec):
                                                                                 ignore_directory_count_limit=True)
 
 
+class AlertsSpec(CliSpec):
+    def setUp(self):
+        super(AlertsSpec, self).setUp()
+
+        create_global_api_patcher = patch('intezer_analyze_cli.cli.create_global_api')
+        self.create_global_api_patcher_mock = create_global_api_patcher.start()
+        self.addCleanup(create_global_api_patcher.stop)
+
+        key_store.get_stored_api_key = MagicMock(return_value='api_key')
+
+    @patch('intezer_analyze_cli.commands.notify_alerts_from_csv_command')
+    def test_alerts_notify_from_csv_success(self, notify_alerts_from_csv_command_mock):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            csv_file_path = os.path.join(temp_dir, 'alerts.csv')
+            with open(csv_file_path, 'w') as f:
+                f.write('id,environment\ntest-alert-1,production\ntest-alert-2,staging\n')
+
+            # Act
+            result = self.runner.invoke(cli.main_cli,
+                                        ['alerts', 'notify-from-csv', csv_file_path])
+
+            # Assert
+            self.assertEqual(result.exit_code, 0, result.exception)
+            self.assertTrue(notify_alerts_from_csv_command_mock.called)
+            notify_alerts_from_csv_command_mock.assert_called_once_with(csv_path=csv_file_path)
+
+    def test_alerts_notify_from_csv_file_not_exists_returns_error(self):
+        # Arrange
+        non_existent_file = '/non/existent/file.csv'
+
+        # Act
+        result = self.runner.invoke(cli.main_cli,
+                                    ['alerts', 'notify-from-csv', non_existent_file])
+
+        # Assert
+        self.assertEqual(result.exit_code, 2)
+        self.assertTrue(b'does not exist' in result.stdout_bytes)
+
 class CliIndexSpec(CliSpec):
     def setUp(self):
         super(CliIndexSpec, self).setUp()

@@ -342,6 +342,42 @@ def upload_emails_in_directory(emails_root_directory: str, ignore_directory_coun
         click.echo('Unexpected error occurred, please contact us at support@intezer.com '
                    f'and attach the log file in {utilities.log_file_path}')
 
+
+@main_cli.group('alerts', short_help='Alert management commands')
+def alerts():
+    """Alert management commands for Intezer Analyze."""
+    pass
+
+
+@alerts.command('notify-from-csv', short_help='Notify alerts from CSV file')
+@click.argument('csv_path', type=click.Path(exists=True, dir_okay=False))
+def notify_from_csv(csv_path: str):
+    """Notify alerts from a CSV file containing alert IDs and environments.
+
+    \b
+    CSV_PATH: Path to CSV file with 'id' and 'environment' columns.
+
+    \b
+    CSV Format:
+      The CSV file should have the following columns:
+      - id: Alert ID (required)
+      - environment: Environment name (required)
+
+    \b
+    Examples:
+      Notify alerts from CSV file:
+      $ intezer-analyze alerts notify-from-csv ~/alerts.csv
+    """
+    try:
+        create_global_api()
+        commands.notify_alerts_from_csv_command(csv_path=csv_path)
+    except click.Abort:
+        raise
+    except Exception:
+        logger.exception('Unexpected error occurred')
+        click.echo('Unexpected error occurred, please contact us at support@intezer.com '
+                   f'and attach the log file in {utilities.log_file_path}')
+
 if __name__ == '__main__':
     try:
         main_cli()
