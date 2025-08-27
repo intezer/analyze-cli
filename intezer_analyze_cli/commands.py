@@ -1,6 +1,9 @@
+import csv
 import logging
 import os
 from io import BytesIO
+from typing import Dict
+from typing import List
 from typing import Optional
 from email.utils import parsedate_to_datetime
 
@@ -181,7 +184,7 @@ def index_by_txt_file_command(path: str, index_as: str, family_name: str):
                 except sdk_errors.IntezerError as e:
                     index_exceptions.append(f'Failed to index hash: {sha256} error: {e}')
                     logger.exception('Failed to index hash', extra=dict(sha256=sha256))
-                except sdk_errors.IndexFailed:
+                except sdk_errors.IndexFailed as e:
                     index_exceptions.append(f'Failed to index hash: {sha256} error: {e}')
                     logger.exception('Failed to index hash', extra=dict(sha256=sha256))
                 index_progress.update(1)
@@ -355,7 +358,7 @@ def send_phishing_emails_from_directory_command(path: str,
     unsupported_number = 0
     emails_dates = []
 
-    for root, dirs, files in os.walk(path):
+    for root, _, files in os.walk(path):
         files = [f for f in files if not is_hidden(os.path.join(root, f))]
 
         number_of_files = len(files)
@@ -385,7 +388,7 @@ def send_phishing_emails_from_directory_command(path: str,
                         except Exception:
                             continue
 
-                except sdk_errors.IntezerError as ex:
+                except sdk_errors.IntezerError:
                     logger.exception('Error while analyzing directory')
                     failed_number += 1
                 except Exception:
@@ -449,3 +452,98 @@ def _create_analysis_id_file(directory: str, analysis_id: str):
         logger.exception('Could not create analysis_id.txt file', extra=dict(directory=directory))
         click.echo(f'Could not create analysis_id.txt file in {directory}')
         raise
+
+
+def notify_alerts_from_csv_command(csv_path: str):
+    """
+    Notify alerts from a CSV file containing alert IDs and environments.
+    
+    :param csv_path: Path to CSV file with 'id' and 'environment' columns
+    """
+    try:
+        alerts_data = _read_alerts_from_csv(csv_path)
+        success_number = 0
+        failed_number = 0
+        no_channels_number = 0
+        
+        with click.progressbar(length=len(alerts_data),
+                               label='Notifying alerts',
+                               show_pos=True,
+                               width=0) as progressbar:
+            for alert_data in alerts_data:
+                alert_id = alert_data['id']
+                environment = alert_data['environment']
+                
+                try:
+                    alert = Alert(alert_id=alert_id, environment=environment)
+                    notified_channels = alert.notify()
+                    
+                    if notified_channels:
+                        success_number += 1
+                    else:
+                        no_channels_number += 1
+                        logger.info('Alert notified but no channels configured', 
+                                  extra=dict(alert_id=alert_id, environment=environment))
+                        
+                except sdk_errors.AlertNotFoundError:
+                    click.echo(f'Alert {alert_id} not found')
+                    logger.info('Alert not found', extra=dict(alert_id=alert_id, environment=environment))
+                    failed_number += 1
+                except sdk_errors.AlertInProgressError:
+                    click.echo(f'Alert {alert_id} is still in progress')
+                    logger.info('Alert in progress', extra=dict(alert_id=alert_id, environment=environment))
+                    failed_number += 1
+                except sdk_errors.IntezerError as e:
+                    logger.exception('Error while notifying alert', extra=dict(alert_id=alert_id, environment=environment))
+                    failed_number += 1
+                except Exception:
+                    logger.exception('Unexpected error while notifying alert', extra=dict(alert_id=alert_id, environment=environment))
+                    failed_number += 1
+                
+                progressbar.update(1)
+        
+        if success_number > 0:
+            click.echo(f'{success_number} alerts notified successfully')
+        
+        if no_channels_number > 0:
+            click.echo(f'{no_channels_number} alerts didn\'t triggered any notification')
+            
+        if failed_number > 0:
+            click.echo(f'{failed_number} alerts failed to notify')
+            
+    except IOError:
+        click.echo(f'No read permissions for {csv_path}')
+        logger.exception('Error reading CSV file', extra=dict(path=csv_path))
+        raise click.Abort()
+    except Exception:
+        logger.exception('Unexpected error occurred while processing CSV file', extra=dict(path=csv_path))
+        click.echo('Unexpected error occurred while processing CSV file')
+        raise click.Abort()
+
+
+def _read_alerts_from_csv(csv_path: str) -> List[Dict[str, Optional[str]]]:
+    """
+    Read alert IDs and environments from CSV file.
+    
+    :param csv_path: Path to CSV file
+    :return: List of dictionaries with 'id' and 'environment' keys
+    :raises ValueError: If required columns are missing
+    """
+    alerts_data = []
+    
+    with open(csv_path, 'r', newline='', encoding='utf-8-sig') as csvfile:
+        reader = csv.DictReader(csvfile)
+        
+        if not reader.fieldnames or 'id' not in reader.fieldnames:
+            raise ValueError('CSV file must contain an "id" column')
+        
+        for row in reader:
+            alert_id = row['id'].strip()
+            environment = row['environment'].strip()
+            
+            alerts_data.append({'id': alert_id, 'environment': environment})
+    
+    if not alerts_data:
+        raise ValueError('No valid alert data found in CSV file')
+    
+    return alerts_data
