@@ -1,3 +1,10 @@
+1.14.0
+-----
+- Drop support for Python 3.9
+- Add support for Python 3.14
+- Bump intezer-SDK to 1.25
+- Modernize type hints to use Python 3.10+ syntax
+
 1.13.0
 -----
 - Add command for notifying alerts by CSV
