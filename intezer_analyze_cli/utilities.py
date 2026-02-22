@@ -59,7 +59,7 @@ def init_log(logger_name, debug_mode=False):
     # file
     try:
         current_directory = os.getcwd()
-        log_file_path = os.path.join(current_directory, 'intezer-analyze-cli.log')
+        log_file_path = os.path.join(current_directory, 'intezer-cli.log')
         handler = logging.FileHandler(log_file_path)
         formatter = ExtraFormatter('%(asctime)s %(levelname)-8s %(module)s line: %(lineno)d: %(message)s. %(extra)s')
 

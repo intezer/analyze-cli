@@ -19,7 +19,8 @@ with open(rel('intezer_analyze_cli', '__init__.py'), 'r') as f:
 
 install_requires = [
     'click==7.1.2',
-    'intezer-sdk>=1.25.0,<2'
+    'intezer-sdk>=1.25.0,<2',
+    'yaspin>=3.0.0,<4'
 ]
 tests_require = [
     'pytest==9.0.2',
@@ -48,6 +49,7 @@ setup(
     entry_points='''
         [console_scripts]
         intezer-analyze=intezer_analyze_cli.cli:main_cli
+        intezer-cli=intezer_analyze_cli.cli:main_cli
     ''',
     license='Apache License v2',
     long_description=long_description,
