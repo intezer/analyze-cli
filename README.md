@@ -3,7 +3,7 @@
 A cross-platform CLI tool which enables analyzing files with Intezer Analyze.
 
 # Prerequisites
-Python 3.6 and above
+Python 3.10 and above
 
 Python and pip should be available in your path
 

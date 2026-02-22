@@ -2,9 +2,6 @@ import csv
 import logging
 import os
 from io import BytesIO
-from typing import Dict
-from typing import List
-from typing import Optional
 from email.utils import parsedate_to_datetime
 
 import click
@@ -216,7 +213,7 @@ def get_hashes_from_file(path):
         return hashes
 
 
-def index_hash_command(sha256: str, index_as: str, family_name: Optional[str]):
+def index_hash_command(sha256: str, index_as: str, family_name: str | None):
     try:
         index_operation = Index(index_as=sdk_consts.IndexType.from_str(index_as),
                                 sha256=sha256,
@@ -228,7 +225,7 @@ def index_hash_command(sha256: str, index_as: str, family_name: Optional[str]):
         return None, f'Index error: {e} Error occurred with hash: {sha256}'
 
 
-def index_file_command(file_path: str, index_as: str, family_name: Optional[str]):
+def index_file_command(file_path: str, index_as: str, family_name: str | None):
     if not utilities.is_supported_file(file_path):
         click.echo('File is not PE, ELF, DEX or APK')
         return
@@ -243,7 +240,7 @@ def index_file_command(file_path: str, index_as: str, family_name: Optional[str]
 
 def index_directory_command(directory_path: str,
                             index_as: str,
-                            family_name: Optional[str],
+                            family_name: str | None,
                             ignore_directory_count_limit: bool):
     indexes_results = []
 
@@ -521,7 +518,7 @@ def notify_alerts_from_csv_command(csv_path: str):
         raise click.Abort()
 
 
-def _read_alerts_from_csv(csv_path: str) -> List[Dict[str, Optional[str]]]:
+def _read_alerts_from_csv(csv_path: str) -> list[dict[str, str | None]]:
     """
     Read alert IDs and environments from CSV file.
     

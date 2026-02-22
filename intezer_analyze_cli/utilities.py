@@ -3,10 +3,7 @@ import email
 import logging
 import os
 import zipfile
-from email import parser
 from typing import BinaryIO
-from typing import Tuple
-from typing import Union
 
 import click
 
@@ -109,7 +106,7 @@ def is_supported_file(file_path):
     return is_supported
 
 
-def is_eml_file(stream: BinaryIO) -> Tuple[bool, Union[str, None]]:
+def is_eml_file(stream: BinaryIO) -> tuple[bool, str | None]:
     mail_parser = email.parser.BytesParser()
     received_headers = ['To', 'Received']
     required_headers = ['From', 'Date']
