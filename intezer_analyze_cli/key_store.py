@@ -1,16 +1,16 @@
 import logging
 import os
 
-from intezer_analyze_cli.config import default_config as config_
+from intezer_analyze_cli.config import default_config
 
 logger = logging.getLogger('intezer_cli')
 
 
 def get_key_file_path(key_file_name):
     if os.name == 'posix':
-        return os.path.join(os.path.expanduser('~'), config_.key_dir_name, key_file_name)
+        return os.path.join(os.path.expanduser('~'), default_config.key_dir_name, key_file_name)
 
-    return os.path.join(os.path.expandvars('%APPDATA%'), config_.key_dir_name, key_file_name)
+    return os.path.join(os.path.expandvars('%APPDATA%'), default_config.key_dir_name, key_file_name)
 
 
 def delete_key(key_file_name):
@@ -45,20 +45,20 @@ def get_stored_key(key_file_name):
 
 
 def get_stored_api_key():
-    return get_stored_key(config_.key_file_name)
+    return get_stored_key(default_config.key_file_name)
 
 
 def get_stored_default_url():
-    return get_stored_key(config_.url_file_name)
+    return get_stored_key(default_config.url_file_name)
 
 
 def store_api_key(key):
-    store_key(key, config_.key_file_name)
+    store_key(key, default_config.key_file_name)
 
 
 def store_default_url(key):
-    store_key(key, config_.url_file_name)
+    store_key(key, default_config.url_file_name)
 
 
 def delete_default_url():
-    delete_key(config_.url_file_name)
+    delete_key(default_config.url_file_name)

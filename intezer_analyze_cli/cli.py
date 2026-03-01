@@ -9,6 +9,7 @@ from intezer_sdk.consts import CodeItemType
 
 from intezer_analyze_cli import __version__
 from intezer_analyze_cli import commands
+from intezer_analyze_cli import connector_commands
 from intezer_analyze_cli import key_store
 from intezer_analyze_cli import utilities
 from intezer_analyze_cli.config import default_config
@@ -61,26 +62,26 @@ def create_global_api():
 
 
 @click.group(cls=AliasedGroup, context_settings=dict(help_option_names=['-h', '--help'], max_content_width=120),
-             help=f'Intezer Labs Ltd. Intezer Analyze CLI {__version__}')
+             help=f'Intezer Labs Ltd. Intezer CLI {__version__}')
 def main_cli():
     pass
 
 
-@main_cli.command('login', short_help='Login to Intezer Analyze')
+@main_cli.command('login', short_help='Login to Intezer Platform')
 @click.argument('api_key', type=click.UUID)
 @click.argument('api_url', required=False, default=None, type=click.STRING)
 def login(api_key: str, api_url: str):
-    """Login to Intezer Analyze to perform analyses.
+    """Login to Intezer Platform to perform analyses.
 
     \b
-    API_KEY: API key or invite code for Intezer Analyze.
+    API_KEY: API key or invite code for Intezer Platform.
 
     \b
-    API_URL: Intezer Analyze URL in case you have on premise deployment.
+    API_URL: Intezer Platform URL in case you have on premise deployment.
 
     \b
     Example:
-      $ intezer-analyze login edb45d954da54e8e980078001d8921cc
+      $ intezer-cli login edb45d954da54e8e980078001d8921cc
     """
     try:
         if api_url:
@@ -111,7 +112,7 @@ def analyze(path: str,
             no_static_extraction: bool,
             code_item_type: str,
             ignore_directory_count_limit: bool):
-    """ Send a file or a directory for analysis in Intezer Analyze.
+    """ Send a file or a directory for analysis in Intezer Platform.
 
     \b
     PATH: Path to file or directory to send the files inside for analysis.
@@ -119,10 +120,10 @@ def analyze(path: str,
     \b
     Examples:
       Send a single file for analysis:
-      $ intezer-analyze analyze ~/files/threat.exe.sample
+      $ intezer-cli analyze ~/files/threat.exe.sample
       \b
       Send all files in directory for analysis:
-      $ intezer-analyze analyze ~/files/files-to-analyze
+      $ intezer-cli analyze ~/files/files-to-analyze
     """
     try:
         create_global_api()
@@ -157,7 +158,7 @@ def analyze(path: str,
 @main_cli.command('analyze-by-list', short_help='Send a text file with list of hashes')
 @click.argument('path', type=click.Path(exists=True, dir_okay=False))
 def analyze_by_list(path):
-    """ Send a text file with hashes for analysis in Intezer Analyze.
+    """ Send a text file with hashes for analysis in Intezer Platform.
 
     \b
     PATH: Path to txt file.
@@ -165,7 +166,7 @@ def analyze_by_list(path):
     \b
     Examples:
       Send txt file with hashes for analysis:
-      $ intezer-analyze analyze-by-list ~/files/hashes.txt
+      $ intezer-cli analyze-by-list ~/files/hashes.txt
     """
     try:
         create_global_api()
@@ -184,14 +185,14 @@ def analyze_by_list(path):
 @click.argument('family_name', required=False, type=click.STRING, default=None)
 def index_by_list(path: str, index_as: str, family_name: str):
     """
-    Send a text file with hashes for indexing in Intezer Analyze.
+    Send a text file with hashes for indexing in Intezer Platform.
 
     \b
     PATH: Path to a txt file with hashes
 
     \b
     Examples:
-      $ intezer-analyze index-by-list ~/files/hashes.txt malicious family_name
+      $ intezer-cli index-by-list ~/files/hashes.txt malicious family_name
       \b
     """
     try:
@@ -227,10 +228,10 @@ def index(path: str, index_as: str, family_name: str, ignore_directory_count_lim
     \b
     Examples:
       index a single file:
-      $ intezer-analyze index ~/files/threat.exe.sample malicious family_name
+      $ intezer-cli index ~/files/threat.exe.sample malicious family_name
       \b
       index all files in directory:
-      $ intezer-analyze index ~/files/files-to-index trusted
+      $ intezer-cli index ~/files/files-to-index trusted
     """
     try:
         index_type = sdk_consts.IndexType.from_str(index_as)
@@ -270,7 +271,7 @@ def upload_endpoint_scan(offline_scan_directory: str, force: bool, max_concurren
     Examples:
       upload a directory with offline endpoint scan results:
 
-      $ intezer-analyze upload-endpoint-scan /path/to/endpoint_scan_results
+      $ intezer-cli upload-endpoint-scan /path/to/endpoint_scan_results
     """
     try:
         create_global_api()
@@ -299,7 +300,7 @@ def upload_endpoint_scans_in_directory(offline_scans_root_directory: str, force:
     Examples:
       upload a directory with offline endpoint scan results:
 
-      $ intezer-analyze upload-endpoint-scans-in-directory /path/to/endpoint_scan_results_root
+      $ intezer-cli upload-endpoint-scans-in-directory /path/to/endpoint_scan_results_root
     """
     try:
         create_global_api()
@@ -329,7 +330,7 @@ def upload_emails_in_directory(emails_root_directory: str, ignore_directory_coun
     Examples:
       upload a directory with .eml files:
 
-      $ intezer-analyze upload-emails-in-directory /path/to/emails_root_directory
+      $ intezer-cli upload-emails-in-directory /path/to/emails_root_directory
     """
     try:
         create_global_api()
@@ -345,8 +346,144 @@ def upload_emails_in_directory(emails_root_directory: str, ignore_directory_coun
 
 @main_cli.group('alerts', short_help='Alert management commands')
 def alerts():
-    """Alert management commands for Intezer Analyze."""
+    """Alert management commands for Intezer Platform."""
     pass
+
+
+@main_cli.group('alerts-data-sources', cls=AliasedGroup, short_help='Alert data source connector management')
+def alerts_data_sources():
+    """Manage alert data source connectors for Intezer Platform."""
+    pass
+
+
+@alerts_data_sources.command('connect', short_help='Connect a new alert data source')
+@click.option('--source', required=True, type=click.STRING, help='Alert source type')
+@click.option('--name', required=True, type=click.STRING, help='Connector name (must match ^[a-z0-9-]*$)')
+@click.option('--config', 'config_file', required=True, type=click.File('r'),
+              help='Path to JSON file with source-specific credentials (use - for stdin)')
+@click.option('--resolve-false-positive', is_flag=True, default=False,
+              help='Enable auto-resolve false positives')
+@click.option('--noting', is_flag=True, default=False, help='Enable noting')
+@click.option('--auto-endpoint-scan', is_flag=True, default=False, help='Enable auto endpoint scan')
+@click.option('--wait', is_flag=True, default=False, help='Poll status until terminal state')
+def connect_data_source(source: str, name: str, config_file,
+                        resolve_false_positive: bool, noting: bool,
+                        auto_endpoint_scan: bool, wait: bool):
+    """Connect a new alert data source connector.
+
+    \b
+    Examples:
+      $ intezer-cli alerts-data-sources connect --source crowdstrike --name acme-corp --config creds.json
+      $ intezer-cli alerts-data-sources connect --source crowdstrike --name acme-corp --config - < creds.json
+      $ intezer-cli alerts-data-sources connect --source crowdstrike --name acme-corp --config creds.json --wait
+    """
+    try:
+        create_global_api()
+        connector_commands.connect_alert_data_source_command(
+            source=source,
+            name=name,
+            config_file=config_file,
+            resolve_false_positive=resolve_false_positive,
+            noting=noting,
+            auto_endpoint_scan=auto_endpoint_scan,
+            wait=wait
+        )
+    except click.Abort:
+        raise
+    except click.ClickException:
+        raise
+    except Exception:
+        logger.exception('Unexpected error occurred')
+        click.echo('Unexpected error occurred, please contact us at support@intezer.com '
+                   f'and attach the log file in {utilities.log_file_path}', err=True)
+
+
+@alerts_data_sources.command('deactivate', short_help='Deactivate a connector')
+@click.argument('connector_id', type=click.STRING)
+@click.option('--wait', is_flag=True, default=False, help='Poll status until terminal state')
+def deactivate_data_source(connector_id: str, wait: bool):
+    """Deactivate an alert data source connector.
+
+    \b
+    CONNECTOR_ID: The connector ID to deactivate.
+
+    \b
+    Examples:
+      $ intezer-cli alerts-data-sources deactivate acme-corp
+      $ intezer-cli alerts-data-sources deactivate acme-corp --wait
+    """
+    try:
+        create_global_api()
+        connector_commands.deactivate_alert_data_source_command(connector_id=connector_id, wait=wait)
+    except click.Abort:
+        raise
+    except click.ClickException:
+        raise
+    except Exception:
+        logger.exception('Unexpected error occurred')
+        click.echo('Unexpected error occurred, please contact us at support@intezer.com '
+                   f'and attach the log file in {utilities.log_file_path}', err=True)
+
+
+@alerts_data_sources.command('reactivate', short_help='Reactivate a connector')
+@click.argument('connector_id', type=click.STRING)
+@click.option('--wait', is_flag=True, default=False, help='Poll status until terminal state')
+def reactivate_data_source(connector_id: str, wait: bool):
+    """Activate (reactivate) an alert data source connector.
+
+    \b
+    CONNECTOR_ID: The connector ID to activate.
+
+    \b
+    Examples:
+      $ intezer-cli alerts-data-sources activate acme-corp
+      $ intezer-cli alerts-data-sources activate acme-corp --wait
+    """
+    try:
+        create_global_api()
+        connector_commands.reactivate_alert_data_source_command(connector_id=connector_id, wait=wait)
+    except click.Abort:
+        raise
+    except click.ClickException:
+        raise
+    except Exception:
+        logger.exception('Unexpected error occurred')
+        click.echo('Unexpected error occurred, please contact us at support@intezer.com '
+                   f'and attach the log file in {utilities.log_file_path}', err=True)
+
+
+@alerts_data_sources.command('update', short_help='Update connector credentials or settings')
+@click.argument('connector_id', type=click.STRING)
+@click.option('--config', 'config_file', required=True, type=click.File('r'),
+              help='Path to JSON file with updated credentials or settings (use - for stdin)')
+@click.option('--wait', is_flag=True, default=False, help='Poll status until terminal state')
+def update_data_source(connector_id: str, config_file, wait: bool):
+    """Update an alert data source connector's credentials or settings.
+
+    \b
+    CONNECTOR_ID: The connector ID to update.
+
+    \b
+    Examples:
+      $ intezer-cli alerts-data-sources update <connector-id> --config new-creds.json
+      $ intezer-cli alerts-data-sources update <connector-id> --config - < new-creds.json
+      $ intezer-cli alerts-data-sources update <connector-id> --config new-creds.json --wait
+    """
+    try:
+        create_global_api()
+        connector_commands.update_alert_data_source_command(
+            connector_id=connector_id,
+            config_file=config_file,
+            wait=wait
+        )
+    except click.Abort:
+        raise
+    except click.ClickException:
+        raise
+    except Exception:
+        logger.exception('Unexpected error occurred')
+        click.echo('Unexpected error occurred, please contact us at support@intezer.com '
+                   f'and attach the log file in {utilities.log_file_path}', err=True)
 
 
 @alerts.command('notify-from-csv', short_help='Notify alerts from CSV file')
@@ -366,7 +503,7 @@ def notify_from_csv(csv_path: str):
     \b
     Examples:
       Notify alerts from CSV file:
-      $ intezer-analyze alerts notify-from-csv ~/alerts.csv
+      $ intezer-cli alerts notify-from-csv ~/alerts.csv
     """
     try:
         create_global_api()

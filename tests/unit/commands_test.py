@@ -1,3 +1,5 @@
+import io
+import json
 import os
 import tempfile
 import unittest.mock
@@ -5,6 +7,7 @@ import uuid
 from pathlib import Path
 from tempfile import tempdir
 from unittest.mock import MagicMock
+from unittest.mock import call
 from unittest.mock import patch
 
 import click.exceptions
@@ -13,6 +16,7 @@ import intezer_sdk.base_analysis
 from intezer_sdk import errors as sdk_errors
 import intezer_analyze_cli.key_store as key_store
 from intezer_analyze_cli import commands
+from intezer_analyze_cli import connector_commands
 from intezer_analyze_cli.cli import create_global_api
 from tests.unit.cli_test import CliSpec
 
@@ -367,16 +371,16 @@ class CommandAlertsSpec(CliSpec):
     def test_notify_alerts_from_csv_command_handles_alert_in_progress(self, mock_progressbar, mock_alert_class):
         # Arrange
         create_global_api()
-        
+
         # Mock progress bar
         mock_progress_context = MagicMock()
         mock_progressbar.return_value.__enter__.return_value = mock_progress_context
-        
+
         # Mock Alert instance that raises AlertInProgressError
         mock_alert = MagicMock()
         mock_alert.notify.side_effect = sdk_errors.AlertInProgressError('test-alert-1')
         mock_alert_class.return_value = mock_alert
-        
+
         with tempfile.TemporaryDirectory() as temp_dir:
             csv_file_path = os.path.join(temp_dir, 'test_alerts.csv')
             with open(csv_file_path, 'w') as f:
@@ -390,4 +394,507 @@ class CommandAlertsSpec(CliSpec):
             mock_alert.notify.assert_called_once()
             mock_echo.assert_any_call('Alert test-alert-1 is still in progress')
             mock_echo.assert_any_call('1 alerts failed to notify')
+
+
+class CommandConnectAlertDataSourceSpec(CliSpec):
+    def setUp(self):
+        super(CommandConnectAlertDataSourceSpec, self).setUp()
+
+        self.mock_api_client = MagicMock()
+        api_patcher = patch('intezer_analyze_cli.connector_commands.api.get_global_api',
+                            return_value=self.mock_api_client)
+        api_patcher.start()
+        self.addCleanup(api_patcher.stop)
+
+        raise_for_status_patcher = patch('intezer_analyze_cli.connector_commands.raise_for_status')
+        raise_for_status_patcher.start()
+        self.addCleanup(raise_for_status_patcher.stop)
+
+    def test_connect_prints_connector_id(self):
+        # Arrange
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            'result_url': '/alerts-data-sources/acme-corp/connect-status',
+            'connector_id': 'conn-123-abc'
+        }
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = mock_response
+
+        config_file = io.StringIO('{}')
+
+        # Act
+        with patch('click.echo') as mock_echo:
+            connector_commands.connect_alert_data_source_command(
+                source='crowdstrike',
+                name='acme-corp',
+                config_file=config_file,
+                resolve_false_positive=False,
+                noting=False,
+                auto_endpoint_scan=False,
+                wait=False
+            )
+
+        # Assert
+        mock_echo.assert_any_call('Connector ID: conn-123-abc')
+
+    def test_connect_builds_correct_request_body(self):
+        # Arrange
+        mock_response = MagicMock()
+        mock_response.json.return_value = {'result_url': '/alerts-data-sources/acme-corp/connect-status'}
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = mock_response
+
+        config_data = {'crowdstrike': {'client_secret': 'secret', 'client_id': 'id123'}}
+        config_file = io.StringIO(json.dumps(config_data))
+
+        # Act
+        connector_commands.connect_alert_data_source_command(
+            source='crowdstrike',
+            name='acme-corp',
+            config_file=config_file,
+            resolve_false_positive=True,
+            noting=False,
+            auto_endpoint_scan=True,
+            wait=False
+        )
+
+        # Assert
+        expected_body = {
+            'alert_source': 'crowdstrike',
+            'connector_name': 'acme-corp',
+            'is_resolve_false_positive_enabled': True,
+            'is_noting_enabled': False,
+            'is_auto_endpoint_scan_enabled': True,
+            'crowdstrike': {'client_secret': 'secret', 'client_id': 'id123'}
+        }
+        self.mock_api_client.request_with_refresh_expired_access_token.assert_called_once_with(
+            method='POST',
+            path='/alerts-data-sources/connect',
+            data=expected_body
+        )
+
+    @patch.dict(os.environ, {'INTEZER_TENANT_ID': 'tenant-123'})
+    def test_connect_includes_tenant_id_when_env_var_set(self):
+        # Arrange
+        mock_response = MagicMock()
+        mock_response.json.return_value = {'result_url': '/alerts-data-sources/acme-corp/connect-status'}
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = mock_response
+
+        config_file = io.StringIO('{}')
+
+        # Act
+        connector_commands.connect_alert_data_source_command(
+            source='crowdstrike',
+            name='acme-corp',
+            config_file=config_file,
+            resolve_false_positive=False,
+            noting=False,
+            auto_endpoint_scan=False,
+            wait=False
+        )
+
+        # Assert
+        call_kwargs = self.mock_api_client.request_with_refresh_expired_access_token.call_args
+        self.assertEqual(call_kwargs[1]['data']['tenant_id'], 'tenant-123')
+
+    def test_connect_aborts_when_invalid_connector_name(self):
+        # Arrange
+        config_file = io.StringIO('{}')
+
+        # Act & Assert
+        with self.assertRaises(click.exceptions.Abort):
+            connector_commands.connect_alert_data_source_command(
+                source='crowdstrike',
+                name='INVALID_NAME!',
+                config_file=config_file,
+                resolve_false_positive=False,
+                noting=False,
+                auto_endpoint_scan=False,
+                wait=False
+            )
+
+        self.mock_api_client.request_with_refresh_expired_access_token.assert_not_called()
+
+    def test_connect_aborts_when_invalid_json_config(self):
+        # Arrange
+        config_file = io.StringIO('{invalid json}')
+
+        # Act & Assert
+        with patch('click.echo') as mock_echo:
+            with self.assertRaises(click.exceptions.Abort):
+                connector_commands.connect_alert_data_source_command(
+                    source='crowdstrike',
+                    name='acme-corp',
+                    config_file=config_file,
+                    resolve_false_positive=False,
+                    noting=False,
+                    auto_endpoint_scan=False,
+                    wait=False
+                )
+
+            echo_calls = [str(c) for c in mock_echo.call_args_list]
+            self.assertTrue(any('Invalid JSON' in c for c in echo_calls))
+
+    @patch('intezer_analyze_cli.connector_commands._wait_for_connector_status')
+    def test_connect_calls_wait_when_flag_is_set(self, mock_wait):
+        # Arrange
+        mock_response = MagicMock()
+        mock_response.json.return_value = {'result_url': '/alerts-data-sources/acme-corp/connect-status'}
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = mock_response
+
+        config_file = io.StringIO('{}')
+
+        # Act
+        connector_commands.connect_alert_data_source_command(
+            source='crowdstrike',
+            name='acme-corp',
+            config_file=config_file,
+            resolve_false_positive=False,
+            noting=False,
+            auto_endpoint_scan=False,
+            wait=True
+        )
+
+        # Assert
+        mock_wait.assert_called_once_with('/alerts-data-sources/acme-corp/connect-status')
+
+    @patch('intezer_analyze_cli.connector_commands._wait_for_connector_status')
+    def test_connect_does_not_call_wait_when_flag_is_false(self, mock_wait):
+        # Arrange
+        mock_response = MagicMock()
+        mock_response.json.return_value = {'result_url': '/alerts-data-sources/acme-corp/connect-status'}
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = mock_response
+
+        config_file = io.StringIO('{}')
+
+        # Act
+        connector_commands.connect_alert_data_source_command(
+            source='crowdstrike',
+            name='acme-corp',
+            config_file=config_file,
+            resolve_false_positive=False,
+            noting=False,
+            auto_endpoint_scan=False,
+            wait=False
+        )
+
+        # Assert
+        mock_wait.assert_not_called()
+
+
+class CommandDeactivateAlertDataSourceSpec(CliSpec):
+    def setUp(self):
+        super(CommandDeactivateAlertDataSourceSpec, self).setUp()
+
+        self.mock_api_client = MagicMock()
+        api_patcher = patch('intezer_analyze_cli.connector_commands.api.get_global_api',
+                            return_value=self.mock_api_client)
+        api_patcher.start()
+        self.addCleanup(api_patcher.stop)
+
+        raise_for_status_patcher = patch('intezer_analyze_cli.connector_commands.raise_for_status')
+        raise_for_status_patcher.start()
+        self.addCleanup(raise_for_status_patcher.stop)
+
+    def test_deactivate_calls_correct_api_path(self):
+        # Arrange
+        mock_response = MagicMock()
+        mock_response.json.return_value = {'result_url': '/alerts-data-sources/acme-corp/connect-status'}
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = mock_response
+
+        # Act
+        connector_commands.deactivate_alert_data_source_command(connector_id='acme-corp', wait=False)
+
+        # Assert
+        self.mock_api_client.request_with_refresh_expired_access_token.assert_called_once_with(
+            method='POST',
+            path='/alerts-data-sources/acme-corp/deactivate'
+        )
+
+    @patch('intezer_analyze_cli.connector_commands._wait_for_connector_status')
+    def test_deactivate_calls_wait_when_flag_is_set(self, mock_wait):
+        # Arrange
+        mock_response = MagicMock()
+        mock_response.json.return_value = {'result_url': '/alerts-data-sources/acme-corp/connect-status'}
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = mock_response
+
+        # Act
+        connector_commands.deactivate_alert_data_source_command(connector_id='acme-corp', wait=True)
+
+        # Assert
+        mock_wait.assert_called_once_with('/alerts-data-sources/acme-corp/connect-status')
+
+
+class CommandActivateAlertDataSourceSpec(CliSpec):
+    def setUp(self):
+        super(CommandActivateAlertDataSourceSpec, self).setUp()
+
+        self.mock_api_client = MagicMock()
+        api_patcher = patch('intezer_analyze_cli.connector_commands.api.get_global_api',
+                            return_value=self.mock_api_client)
+        api_patcher.start()
+        self.addCleanup(api_patcher.stop)
+
+        raise_for_status_patcher = patch('intezer_analyze_cli.connector_commands.raise_for_status')
+        raise_for_status_patcher.start()
+        self.addCleanup(raise_for_status_patcher.stop)
+
+    def test_activate_calls_correct_api_path(self):
+        # Arrange
+        mock_response = MagicMock()
+        mock_response.json.return_value = {'result_url': '/alerts-data-sources/acme-corp/connect-status'}
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = mock_response
+
+        # Act
+        connector_commands.reactivate_alert_data_source_command(connector_id='acme-corp', wait=False)
+
+        # Assert
+        self.mock_api_client.request_with_refresh_expired_access_token.assert_called_once_with(
+            method='POST',
+            path='/alerts-data-sources/acme-corp/reactivate'
+        )
+
+    @patch('intezer_analyze_cli.connector_commands._wait_for_connector_status')
+    def test_activate_calls_wait_when_flag_is_set(self, mock_wait):
+        # Arrange
+        mock_response = MagicMock()
+        mock_response.json.return_value = {'result_url': '/alerts-data-sources/acme-corp/connect-status'}
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = mock_response
+
+        # Act
+        connector_commands.reactivate_alert_data_source_command(connector_id='acme-corp', wait=True)
+
+        # Assert
+        mock_wait.assert_called_once_with('/alerts-data-sources/acme-corp/connect-status')
+
+
+class CommandUpdateAlertDataSourceSpec(CliSpec):
+    def setUp(self):
+        super(CommandUpdateAlertDataSourceSpec, self).setUp()
+
+        self.mock_api_client = MagicMock()
+        api_patcher = patch('intezer_analyze_cli.connector_commands.api.get_global_api',
+                            return_value=self.mock_api_client)
+        api_patcher.start()
+        self.addCleanup(api_patcher.stop)
+
+        raise_for_status_patcher = patch('intezer_analyze_cli.connector_commands.raise_for_status')
+        raise_for_status_patcher.start()
+        self.addCleanup(raise_for_status_patcher.stop)
+
+    def test_update_calls_correct_api_path_with_put(self):
+        # Arrange
+        mock_response = MagicMock()
+        mock_response.status_code = 202
+        mock_response.json.return_value = {'result_url': '/alerts-data-sources/acme-corp/connect-status'}
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = mock_response
+
+        config_data = {'crowdstrike': {'client_secret': 'new-secret'}}
+        config_file = io.StringIO(json.dumps(config_data))
+
+        # Act
+        connector_commands.update_alert_data_source_command(
+            connector_id='acme-corp',
+            config_file=config_file,
+            wait=False
+        )
+
+        # Assert
+        self.mock_api_client.request_with_refresh_expired_access_token.assert_called_once_with(
+            method='PUT',
+            path='/alerts-data-sources/acme-corp',
+            data=config_data
+        )
+
+    def test_update_returns_immediately_on_200_ok(self):
+        # Arrange
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = mock_response
+
+        config_file = io.StringIO('{}')
+
+        # Act
+        with patch('click.echo') as mock_echo:
+            connector_commands.update_alert_data_source_command(
+                connector_id='acme-corp',
+                config_file=config_file,
+                wait=True
+            )
+
+        # Assert
+        mock_echo.assert_called_once_with('Update applied for "acme-corp"')
+        mock_response.json.assert_not_called()
+
+    def test_update_aborts_when_invalid_json_config(self):
+        # Arrange
+        config_file = io.StringIO('not valid json')
+
+        # Act & Assert
+        with patch('click.echo') as mock_echo:
+            with self.assertRaises(click.exceptions.Abort):
+                connector_commands.update_alert_data_source_command(
+                    connector_id='acme-corp',
+                    config_file=config_file,
+                    wait=False
+                )
+
+            echo_calls = [str(c) for c in mock_echo.call_args_list]
+            self.assertTrue(any('Invalid JSON' in c for c in echo_calls))
+
+    @patch('intezer_analyze_cli.connector_commands._wait_for_connector_status')
+    def test_update_calls_wait_when_flag_is_set(self, mock_wait):
+        # Arrange
+        mock_response = MagicMock()
+        mock_response.status_code = 202
+        mock_response.json.return_value = {'result_url': '/alerts-data-sources/acme-corp/connect-status'}
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = mock_response
+
+        config_file = io.StringIO('{}')
+
+        # Act
+        connector_commands.update_alert_data_source_command(
+            connector_id='acme-corp',
+            config_file=config_file,
+            wait=True
+        )
+
+        # Assert
+        mock_wait.assert_called_once_with('/alerts-data-sources/acme-corp/connect-status')
+
+
+class CommandWaitForConnectorStatusSpec(CliSpec):
+    def setUp(self):
+        super(CommandWaitForConnectorStatusSpec, self).setUp()
+
+        self.mock_api_client = MagicMock()
+        api_patcher = patch('intezer_analyze_cli.connector_commands.api.get_global_api',
+                            return_value=self.mock_api_client)
+        api_patcher.start()
+        self.addCleanup(api_patcher.stop)
+
+        raise_for_status_patcher = patch('intezer_analyze_cli.connector_commands.raise_for_status')
+        self.mock_raise_for_status = raise_for_status_patcher.start()
+        self.addCleanup(raise_for_status_patcher.stop)
+
+        sleep_patcher = patch('intezer_analyze_cli.connector_commands.time.sleep')
+        self.mock_sleep = sleep_patcher.start()
+        self.addCleanup(sleep_patcher.stop)
+
+        self.mock_spinner = MagicMock()
+        yaspin_patcher = patch('intezer_analyze_cli.connector_commands.yaspin')
+        self.mock_yaspin = yaspin_patcher.start()
+        self.mock_yaspin.return_value.__enter__ = MagicMock(return_value=self.mock_spinner)
+        self.mock_yaspin.return_value.__exit__ = MagicMock(return_value=False)
+        self.addCleanup(yaspin_patcher.stop)
+
+    def _make_status_response(self, status, error=None):
+        mock_response = MagicMock()
+        result = {'status': status}
+        if error:
+            result['error'] = error
+        mock_response.json.return_value = result
+        return mock_response
+
+    def test_wait_returns_on_active_status(self):
+        # Arrange
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = \
+            self._make_status_response('active')
+
+        # Act
+        connector_commands._wait_for_connector_status('/alerts-data-sources/acme-corp/connect-status')
+
+        # Assert
+        self.mock_api_client.request_with_refresh_expired_access_token.assert_called_once_with(
+            method='GET',
+            path='/alerts-data-sources/acme-corp/connect-status',
+            base_url=self.mock_api_client.base_url.removesuffix().rstrip()
+        )
+        self.mock_sleep.assert_not_called()
+
+    def test_wait_returns_on_pending_status(self):
+        # Arrange
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = \
+            self._make_status_response('pending')
+
+        # Act
+        connector_commands._wait_for_connector_status('/alerts-data-sources/acme-corp/connect-status')
+
+        # Assert
+        self.mock_sleep.assert_not_called()
+
+    def test_wait_returns_on_deactivated_status(self):
+        # Arrange
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = \
+            self._make_status_response('deactivated')
+
+        # Act
+        connector_commands._wait_for_connector_status('/alerts-data-sources/acme-corp/connect-status')
+
+        # Assert
+        self.mock_sleep.assert_not_called()
+
+    def test_wait_raises_on_credentials_verification_failed(self):
+        # Arrange
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = \
+            self._make_status_response('credentials_verification_failed', error='Bad credentials')
+
+        # Act & Assert
+        with self.assertRaises(click.exceptions.ClickException) as ctx:
+            connector_commands._wait_for_connector_status('/alerts-data-sources/acme-corp/connect-status')
+
+        self.assertIn('credentials_verification_failed', str(ctx.exception))
+
+    def test_wait_raises_on_deployment_failed(self):
+        # Arrange
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = \
+            self._make_status_response('deployment_failed')
+
+        # Act & Assert
+        with self.assertRaises(click.exceptions.ClickException) as ctx:
+            connector_commands._wait_for_connector_status('/alerts-data-sources/acme-corp/connect-status')
+
+        self.assertIn('deployment_failed', str(ctx.exception))
+
+    def test_wait_raises_on_update_failed(self):
+        # Arrange
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = \
+            self._make_status_response('update_failed')
+
+        # Act & Assert
+        with self.assertRaises(click.exceptions.ClickException):
+            connector_commands._wait_for_connector_status('/alerts-data-sources/acme-corp/connect-status')
+
+    def test_wait_polls_through_in_progress_statuses(self):
+        # Arrange
+        self.mock_api_client.request_with_refresh_expired_access_token.side_effect = [
+            self._make_status_response('verifying_credentials'),
+            self._make_status_response('deployment_in_progress'),
+            self._make_status_response('active'),
+        ]
+
+        # Act
+        connector_commands._wait_for_connector_status('/alerts-data-sources/acme-corp/connect-status')
+
+        # Assert
+        self.assertEqual(self.mock_api_client.request_with_refresh_expired_access_token.call_count, 3)
+        self.assertEqual(self.mock_sleep.call_count, 2)
+        self.mock_sleep.assert_called_with(5)
+
+    def test_wait_prints_status_transitions(self):
+        # Arrange
+        self.mock_api_client.request_with_refresh_expired_access_token.side_effect = [
+            self._make_status_response('verifying_credentials'),
+            self._make_status_response('verifying_credentials'),
+            self._make_status_response('active'),
+        ]
+
+        # Act
+        connector_commands._wait_for_connector_status('/alerts-data-sources/acme-corp/connect-status')
+
+        # Assert - should print verifying_credentials only once (deduped), then active via sp.write
+        self.mock_spinner.write.assert_any_call('Status: verifying_credentials')
+        self.mock_spinner.write.assert_any_call('Status: active')
+        # verifying_credentials should appear exactly once in write calls
+        status_calls = [c for c in self.mock_spinner.write.call_args_list
+                        if 'Status: verifying_credentials' in str(c)]
+        self.assertEqual(len(status_calls), 1)
 

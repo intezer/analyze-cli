@@ -42,7 +42,7 @@
 
 1.10.1
 -----
-- Add command for sending phishing emails from a directory to Intezer Analyze
+- Add command for sending phishing emails from a directory to Intezer Platform
 - Upgrade intezer-SDK to 1.19.9
 
 1.9.3

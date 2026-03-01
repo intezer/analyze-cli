@@ -1,7 +1,9 @@
+import json
 import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import ANY
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
@@ -311,6 +313,244 @@ class AlertsSpec(CliSpec):
         # Assert
         self.assertEqual(result.exit_code, 2)
         self.assertTrue(b'does not exist' in result.stdout_bytes)
+
+class AlertsDataSourcesCliSpec(CliSpec):
+    def setUp(self):
+        super(AlertsDataSourcesCliSpec, self).setUp()
+
+        create_global_api_patcher = patch('intezer_analyze_cli.cli.create_global_api')
+        self.create_global_api_patcher_mock = create_global_api_patcher.start()
+        self.addCleanup(create_global_api_patcher.stop)
+
+        key_store.get_stored_api_key = MagicMock(return_value='api_key')
+
+    @patch('intezer_analyze_cli.connector_commands.connect_alert_data_source_command')
+    def test_connect_invokes_command_with_correct_args(self, connect_mock):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = os.path.join(temp_dir, 'creds.json')
+            with open(config_path, 'w') as f:
+                json.dump({'crowdstrike': {'client_id': 'id'}}, f)
+
+            # Act
+            result = self.runner.invoke(cli.main_cli, [
+                'alerts-data-sources', 'connect',
+                '--source', 'crowdstrike',
+                '--name', 'acme-corp',
+                '--config', config_path,
+                '--resolve-false-positive',
+                '--noting',
+                '--auto-endpoint-scan',
+                '--wait'
+            ])
+
+            # Assert
+            self.assertEqual(result.exit_code, 0, result.exception)
+            connect_mock.assert_called_once_with(
+                source='crowdstrike',
+                name='acme-corp',
+                config_file=ANY,
+                resolve_false_positive=True,
+                noting=True,
+                auto_endpoint_scan=True,
+                wait=True
+            )
+
+    @patch('intezer_analyze_cli.connector_commands.connect_alert_data_source_command')
+    def test_connect_invokes_command_with_defaults(self, connect_mock):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = os.path.join(temp_dir, 'creds.json')
+            with open(config_path, 'w') as f:
+                json.dump({}, f)
+
+            # Act
+            result = self.runner.invoke(cli.main_cli, [
+                'alerts-data-sources', 'connect',
+                '--source', 'crowdstrike',
+                '--name', 'acme-corp',
+                '--config', config_path
+            ])
+
+            # Assert
+            self.assertEqual(result.exit_code, 0, result.exception)
+            connect_mock.assert_called_once_with(
+                source='crowdstrike',
+                name='acme-corp',
+                config_file=ANY,
+                resolve_false_positive=False,
+                noting=False,
+                auto_endpoint_scan=False,
+                wait=False
+            )
+
+    def test_connect_missing_required_source_returns_error(self):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = os.path.join(temp_dir, 'creds.json')
+            with open(config_path, 'w') as f:
+                json.dump({}, f)
+
+            # Act
+            result = self.runner.invoke(cli.main_cli, [
+                'alerts-data-sources', 'connect',
+                '--name', 'acme-corp',
+                '--config', config_path
+            ])
+
+            # Assert
+            self.assertEqual(result.exit_code, 2)
+            self.assertIn(b'--source', result.stdout_bytes)
+
+    def test_connect_missing_required_name_returns_error(self):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = os.path.join(temp_dir, 'creds.json')
+            with open(config_path, 'w') as f:
+                json.dump({}, f)
+
+            # Act
+            result = self.runner.invoke(cli.main_cli, [
+                'alerts-data-sources', 'connect',
+                '--source', 'crowdstrike',
+                '--config', config_path
+            ])
+
+            # Assert
+            self.assertEqual(result.exit_code, 2)
+            self.assertIn(b'--name', result.stdout_bytes)
+
+    def test_connect_missing_required_config_returns_error(self):
+        # Act
+        result = self.runner.invoke(cli.main_cli, [
+            'alerts-data-sources', 'connect',
+            '--source', 'crowdstrike',
+            '--name', 'acme-corp'
+        ])
+
+        # Assert
+        self.assertEqual(result.exit_code, 2)
+        self.assertIn(b'--config', result.stdout_bytes)
+
+    @patch('intezer_analyze_cli.connector_commands.deactivate_alert_data_source_command')
+    def test_deactivate_invokes_command_with_correct_args(self, deactivate_mock):
+        # Act
+        result = self.runner.invoke(cli.main_cli, [
+            'alerts-data-sources', 'deactivate', 'acme-corp', '--wait'
+        ])
+
+        # Assert
+        self.assertEqual(result.exit_code, 0, result.exception)
+        deactivate_mock.assert_called_once_with(connector_id='acme-corp', wait=True)
+
+    @patch('intezer_analyze_cli.connector_commands.deactivate_alert_data_source_command')
+    def test_deactivate_invokes_command_without_wait(self, deactivate_mock):
+        # Act
+        result = self.runner.invoke(cli.main_cli, [
+            'alerts-data-sources', 'deactivate', 'acme-corp'
+        ])
+
+        # Assert
+        self.assertEqual(result.exit_code, 0, result.exception)
+        deactivate_mock.assert_called_once_with(connector_id='acme-corp', wait=False)
+
+    def test_deactivate_missing_connector_name_returns_error(self):
+        # Act
+        result = self.runner.invoke(cli.main_cli, [
+            'alerts-data-sources', 'deactivate'
+        ])
+
+        # Assert
+        self.assertEqual(result.exit_code, 2)
+
+    @patch('intezer_analyze_cli.connector_commands.reactivate_alert_data_source_command')
+    def test_activate_invokes_command_with_correct_args(self, activate_mock):
+        # Act
+        result = self.runner.invoke(cli.main_cli, [
+            'alerts-data-sources', 'reactivate', 'acme-corp', '--wait'
+        ])
+
+        # Assert
+        self.assertEqual(result.exit_code, 0, result.exception)
+        activate_mock.assert_called_once_with(connector_id='acme-corp', wait=True)
+
+    @patch('intezer_analyze_cli.connector_commands.update_alert_data_source_command')
+    def test_update_invokes_command_with_correct_args(self, update_mock):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = os.path.join(temp_dir, 'new-creds.json')
+            with open(config_path, 'w') as f:
+                json.dump({'new_key': 'new_value'}, f)
+
+            # Act
+            result = self.runner.invoke(cli.main_cli, [
+                'alerts-data-sources', 'update', 'acme-corp',
+                '--config', config_path, '--wait'
+            ])
+
+            # Assert
+            self.assertEqual(result.exit_code, 0, result.exception)
+            update_mock.assert_called_once_with(
+                connector_id='acme-corp',
+                config_file=ANY,
+                wait=True
+            )
+
+    def test_update_missing_required_config_returns_error(self):
+        # Act
+        result = self.runner.invoke(cli.main_cli, [
+            'alerts-data-sources', 'update', 'acme-corp'
+        ])
+
+        # Assert
+        self.assertEqual(result.exit_code, 2)
+        self.assertIn(b'--config', result.stdout_bytes)
+
+    @patch('intezer_analyze_cli.connector_commands.connect_alert_data_source_command')
+    def test_group_accessible_with_underscores(self, connect_mock):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = os.path.join(temp_dir, 'creds.json')
+            with open(config_path, 'w') as f:
+                json.dump({}, f)
+
+            # Act
+            result = self.runner.invoke(cli.main_cli, [
+                'alerts_data_sources', 'connect',
+                '--source', 'crowdstrike',
+                '--name', 'acme-corp',
+                '--config', config_path
+            ])
+
+            # Assert
+            self.assertEqual(result.exit_code, 0, result.exception)
+            self.assertTrue(connect_mock.called)
+
+    def test_group_help_shows_subcommands(self):
+        # Act
+        result = self.runner.invoke(cli.main_cli, ['alerts-data-sources', '--help'])
+
+        # Assert
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn(b'connect', result.stdout_bytes)
+        self.assertIn(b'deactivate', result.stdout_bytes)
+        self.assertIn(b'activate', result.stdout_bytes)
+        self.assertIn(b'update', result.stdout_bytes)
+
+    def test_connect_help_shows_options(self):
+        # Act
+        result = self.runner.invoke(cli.main_cli, ['alerts-data-sources', 'connect', '--help'])
+
+        # Assert
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn(b'--source', result.stdout_bytes)
+        self.assertIn(b'--name', result.stdout_bytes)
+        self.assertIn(b'--config', result.stdout_bytes)
+        self.assertIn(b'--resolve-false-positive', result.stdout_bytes)
+        self.assertIn(b'--noting', result.stdout_bytes)
+        self.assertIn(b'--auto-endpoint-scan', result.stdout_bytes)
+        self.assertIn(b'--wait', result.stdout_bytes)
+
 
 class CliIndexSpec(CliSpec):
     def setUp(self):

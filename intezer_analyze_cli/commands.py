@@ -518,6 +518,7 @@ def notify_alerts_from_csv_command(csv_path: str):
         raise click.Abort()
 
 
+
 def _read_alerts_from_csv(csv_path: str) -> list[dict[str, str | None]]:
     """
     Read alert IDs and environments from CSV file.
