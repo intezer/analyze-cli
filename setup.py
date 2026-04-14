@@ -23,7 +23,7 @@ install_requires = [
     'yaspin>=3.0.0,<4'
 ]
 tests_require = [
-    'pytest==9.0.2',
+    'pytest==9.0.3',
     'responses==0.26.0'
 ]
 
