@@ -1,3 +1,7 @@
+1.15.0
+-----
+- alerts-data-sources connect-batch: connect multiple alert data sources from a JSONL file with up to 5 concurrent requests and a progress bar
+
 1.14.0
 -----
 - Drop support for Python 3.9

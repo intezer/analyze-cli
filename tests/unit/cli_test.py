@@ -420,6 +420,104 @@ class AlertsDataSourcesCliSpec(CliSpec):
             self.assertEqual(result.exit_code, 2)
             self.assertIn(b'--name', result.stdout_bytes)
 
+    @patch('intezer_analyze_cli.connector_commands.connect_alert_data_sources_batch_command')
+    def test_connect_batch_invokes_command_with_defaults(self, batch_mock):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = os.path.join(temp_dir, 'connectors.jsonl')
+            entries = [
+                {'alert_source': 'crowdstrike', 'connector_name': 'acme-cs',
+                 'crowdstrike': {'client_id': 'a', 'client_secret': 'b'}},
+                {'alert_source': 'sentinel_one', 'connector_name': 'acme-s1',
+                 'sentinel_one': {'api_token': 't', 'base_url': 'https://example'}},
+            ]
+            with open(config_path, 'w') as f:
+                f.write('\n'.join(json.dumps(e) for e in entries))
+
+            # Act
+            result = self.runner.invoke(cli.main_cli, [
+                'alerts-data-sources', 'connect-batch',
+                '--config', config_path,
+            ])
+
+            # Assert
+            self.assertEqual(result.exit_code, 0, result.exception)
+            batch_mock.assert_called_once_with(
+                config_file=ANY,
+                wait=False,
+                max_concurrent=5,
+            )
+
+    @patch('intezer_analyze_cli.connector_commands.connect_alert_data_sources_batch_command')
+    def test_connect_batch_passes_through_flags(self, batch_mock):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = os.path.join(temp_dir, 'connectors.jsonl')
+            with open(config_path, 'w') as f:
+                f.write('{"alert_source":"crowdstrike","connector_name":"acme-cs"}\n')
+
+            # Act
+            result = self.runner.invoke(cli.main_cli, [
+                'alerts-data-sources', 'connect-batch',
+                '--config', config_path,
+                '--wait',
+                '--max-concurrent', '3',
+            ])
+
+            # Assert
+            self.assertEqual(result.exit_code, 0, result.exception)
+            batch_mock.assert_called_once_with(
+                config_file=ANY,
+                wait=True,
+                max_concurrent=3,
+            )
+
+    def test_connect_batch_missing_required_config_returns_error(self):
+        # Act
+        result = self.runner.invoke(cli.main_cli, [
+            'alerts-data-sources', 'connect-batch',
+        ])
+
+        # Assert
+        self.assertEqual(result.exit_code, 2)
+        self.assertIn(b'--config', result.stdout_bytes)
+
+    def test_connect_batch_rejects_zero_concurrency(self):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = os.path.join(temp_dir, 'connectors.jsonl')
+            with open(config_path, 'w') as f:
+                f.write('{"alert_source":"crowdstrike","connector_name":"acme-cs"}\n')
+
+            # Act
+            result = self.runner.invoke(cli.main_cli, [
+                'alerts-data-sources', 'connect-batch',
+                '--config', config_path,
+                '--max-concurrent', '0',
+            ])
+
+            # Assert
+            self.assertEqual(result.exit_code, 2)
+            self.assertIn(b'--max-concurrent', result.stdout_bytes)
+
+    def test_connect_batch_rejects_concurrency_above_five(self):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = os.path.join(temp_dir, 'connectors.jsonl')
+            with open(config_path, 'w') as f:
+                f.write('{"alert_source":"crowdstrike","connector_name":"acme-cs"}\n')
+
+            # Act
+            result = self.runner.invoke(cli.main_cli, [
+                'alerts-data-sources', 'connect-batch',
+                '--config', config_path,
+                '--max-concurrent', '6',
+            ])
+
+            # Assert
+            self.assertEqual(result.exit_code, 2)
+            self.assertIn(b'--max-concurrent', result.stdout_bytes)
+
     def test_connect_missing_required_config_returns_error(self):
         # Act
         result = self.runner.invoke(cli.main_cli, [

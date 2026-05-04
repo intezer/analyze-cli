@@ -398,6 +398,44 @@ def connect_data_source(source: str, name: str, config_file,
                    f'and attach the log file in {utilities.log_file_path}', err=True)
 
 
+@alerts_data_sources.command('connect-batch', short_help='Connect multiple alert data sources from a JSONL file')
+@click.option('--config', 'config_file', required=True, type=click.File('r'),
+              help='Path to JSONL file (one full connector body per line). Use - for stdin.')
+@click.option('--wait', is_flag=True, default=False, help='Poll each connector until terminal state')
+@click.option('--max-concurrent', type=click.IntRange(min=1, max=5), default=5, show_default=True,
+              help='Maximum number of connectors processed in parallel (capped at 5)')
+def connect_data_sources_batch(config_file, wait: bool, max_concurrent: int):
+    """Connect multiple alert data source connectors concurrently from a JSONL file.
+
+    \b
+    Each line of the file must be a full connector body containing at minimum
+    `alert_source` and `connector_name`, plus any source-specific credentials and
+    optional feature flags. Any malformed line aborts the whole operation before
+    any request is sent.
+
+    \b
+    Examples:
+      $ intezer-cli alerts-data-sources connect-batch --config connectors.jsonl
+      $ intezer-cli alerts-data-sources connect-batch --config - < connectors.jsonl --wait
+      $ intezer-cli alerts-data-sources connect-batch --config connectors.jsonl --max-concurrent 10
+    """
+    try:
+        create_global_api()
+        connector_commands.connect_alert_data_sources_batch_command(
+            config_file=config_file,
+            wait=wait,
+            max_concurrent=max_concurrent,
+        )
+    except click.Abort:
+        raise
+    except click.ClickException:
+        raise
+    except Exception:
+        logger.exception('Unexpected error occurred')
+        click.echo('Unexpected error occurred, please contact us at support@intezer.com '
+                   f'and attach the log file in {utilities.log_file_path}', err=True)
+
+
 @alerts_data_sources.command('deactivate', short_help='Deactivate a connector')
 @click.argument('connector_id', type=click.STRING)
 @click.option('--wait', is_flag=True, default=False, help='Poll status until terminal state')

@@ -1,3 +1,4 @@
+import concurrent.futures
 import io
 import json
 import os
@@ -554,7 +555,7 @@ class CommandConnectAlertDataSourceSpec(CliSpec):
         )
 
         # Assert
-        mock_wait.assert_called_once_with('/alerts-data-sources/acme-corp/connect-status')
+        mock_wait.assert_called_once_with('/alerts-data-sources/acme-corp/connect-status', silent=False)
 
     @patch('intezer_analyze_cli.connector_commands._wait_for_connector_status')
     def test_connect_does_not_call_wait_when_flag_is_false(self, mock_wait):
@@ -578,6 +579,252 @@ class CommandConnectAlertDataSourceSpec(CliSpec):
 
         # Assert
         mock_wait.assert_not_called()
+
+
+class CommandConnectAlertDataSourcesBatchSpec(CliSpec):
+    def setUp(self):
+        super(CommandConnectAlertDataSourcesBatchSpec, self).setUp()
+
+        self.mock_api_client = MagicMock()
+        api_patcher = patch('intezer_analyze_cli.connector_commands.api.get_global_api',
+                            return_value=self.mock_api_client)
+        api_patcher.start()
+        self.addCleanup(api_patcher.stop)
+
+        raise_for_status_patcher = patch('intezer_analyze_cli.connector_commands.raise_for_status')
+        raise_for_status_patcher.start()
+        self.addCleanup(raise_for_status_patcher.stop)
+
+    @staticmethod
+    def _ok_response(connector_id: str = 'cid'):
+        response = MagicMock()
+        response.status_code = 201
+        response.json.return_value = {
+            'result_url': f'/alerts-data-sources/{connector_id}/connect-status',
+            'connector_id': connector_id,
+        }
+        return response
+
+    def test_batch_sends_one_request_per_line(self):
+        # Arrange
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = self._ok_response()
+
+        entries = [
+            {'alert_source': 'crowdstrike', 'connector_name': 'a',
+             'crowdstrike': {'client_id': 'i', 'client_secret': 's'}},
+            {'alert_source': 'sentinel_one', 'connector_name': 'b',
+             'sentinel_one': {'api_token': 't', 'base_url': 'https://example'}},
+            {'alert_source': 'cortex_xdr', 'connector_name': 'c',
+             'cortex': {'api_id': 'i', 'api_key': 'k', 'base_url': 'https://example'}},
+        ]
+        config_file = io.StringIO('\n'.join(json.dumps(e) for e in entries) + '\n')
+
+        # Act
+        connector_commands.connect_alert_data_sources_batch_command(
+            config_file=config_file, wait=False, max_concurrent=2,
+        )
+
+        # Assert
+        request_calls = self.mock_api_client.request_with_refresh_expired_access_token.call_args_list
+        self.assertEqual(len(request_calls), 3)
+        sent_bodies = [call.kwargs['data'] for call in request_calls]
+        sent_names = sorted(body['connector_name'] for body in sent_bodies)
+        self.assertEqual(sent_names, ['a', 'b', 'c'])
+
+    def test_batch_ignores_blank_lines(self):
+        # Arrange
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = self._ok_response()
+        entry = {'alert_source': 'crowdstrike', 'connector_name': 'a',
+                 'crowdstrike': {'client_id': 'i', 'client_secret': 's'}}
+        config_file = io.StringIO(f'\n   \n{json.dumps(entry)}\n\n')
+
+        # Act
+        connector_commands.connect_alert_data_sources_batch_command(
+            config_file=config_file, wait=False, max_concurrent=5,
+        )
+
+        # Assert
+        self.mock_api_client.request_with_refresh_expired_access_token.assert_called_once()
+
+    def test_batch_aborts_on_malformed_json_and_sends_nothing(self):
+        # Arrange
+        config_file = io.StringIO(
+            '{"alert_source":"crowdstrike","connector_name":"a"}\n'
+            '{this is not json}\n'
+        )
+
+        # Act & Assert
+        with self.assertRaises(click.exceptions.Abort):
+            connector_commands.connect_alert_data_sources_batch_command(
+                config_file=config_file, wait=False, max_concurrent=5,
+            )
+        self.mock_api_client.request_with_refresh_expired_access_token.assert_not_called()
+
+    def test_batch_aborts_on_missing_required_fields(self):
+        # Arrange
+        config_file = io.StringIO('{"alert_source":"crowdstrike"}\n')
+
+        # Act & Assert
+        with self.assertRaises(click.exceptions.Abort):
+            connector_commands.connect_alert_data_sources_batch_command(
+                config_file=config_file, wait=False, max_concurrent=5,
+            )
+        self.mock_api_client.request_with_refresh_expired_access_token.assert_not_called()
+
+    def test_batch_aborts_on_invalid_connector_name(self):
+        # Arrange
+        config_file = io.StringIO(
+            '{"alert_source":"crowdstrike","connector_name":"BAD_NAME!"}\n'
+        )
+
+        # Act & Assert
+        with self.assertRaises(click.exceptions.Abort):
+            connector_commands.connect_alert_data_sources_batch_command(
+                config_file=config_file, wait=False, max_concurrent=5,
+            )
+        self.mock_api_client.request_with_refresh_expired_access_token.assert_not_called()
+
+    def test_batch_aborts_on_empty_file(self):
+        # Arrange
+        config_file = io.StringIO('  \n\n')
+
+        # Act & Assert
+        with self.assertRaises(click.exceptions.Abort):
+            connector_commands.connect_alert_data_sources_batch_command(
+                config_file=config_file, wait=False, max_concurrent=5,
+            )
+        self.mock_api_client.request_with_refresh_expired_access_token.assert_not_called()
+
+    @patch('intezer_analyze_cli.connector_commands.concurrent.futures.ThreadPoolExecutor')
+    def test_batch_passes_max_concurrent_to_executor(self, executor_cls):
+        # Arrange
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = self._ok_response()
+        # Make the executor a real one but capture its construction args
+        real_executor = unittest.mock.MagicMock()
+        real_executor.__enter__ = lambda self_: self_
+        real_executor.__exit__ = lambda self_, *a: False
+
+        submitted_calls = []
+
+        def submit(fn, *args, **kwargs):
+            future = concurrent.futures.Future()
+            try:
+                future.set_result(fn(*args, **kwargs))
+            except Exception as exc:
+                future.set_exception(exc)
+            submitted_calls.append((fn, args, kwargs, future))
+            return future
+
+        real_executor.submit.side_effect = submit
+        executor_cls.return_value = real_executor
+
+        entries = [
+            {'alert_source': 'crowdstrike', 'connector_name': 'a',
+             'crowdstrike': {'client_id': 'i', 'client_secret': 's'}},
+            {'alert_source': 'sentinel_one', 'connector_name': 'b',
+             'sentinel_one': {'api_token': 't', 'base_url': 'https://example'}},
+        ]
+        config_file = io.StringIO('\n'.join(json.dumps(e) for e in entries))
+
+        # Act
+        connector_commands.connect_alert_data_sources_batch_command(
+            config_file=config_file, wait=False, max_concurrent=3,
+        )
+
+        # Assert
+        executor_cls.assert_called_once_with(max_workers=3)
+        self.assertEqual(len(submitted_calls), 2)
+
+    def test_batch_aggregates_failures_into_click_exception(self):
+        # Arrange — first call ok, second raises (simulated by raise_for_status mock)
+        ok = self._ok_response('a')
+
+        bad_response = MagicMock()
+        bad_response.status_code = 400
+        bad_response.json.return_value = {'error': 'invalid_credentials'}
+
+        responses = [ok, bad_response]
+        call_index = {'i': 0}
+
+        def fake_request(*args, **kwargs):
+            i = call_index['i']
+            call_index['i'] += 1
+            return responses[i]
+
+        self.mock_api_client.request_with_refresh_expired_access_token.side_effect = fake_request
+
+        entries = [
+            {'alert_source': 'crowdstrike', 'connector_name': 'a',
+             'crowdstrike': {'client_id': 'i', 'client_secret': 's'}},
+            {'alert_source': 'sentinel_one', 'connector_name': 'b',
+             'sentinel_one': {'api_token': 't', 'base_url': 'https://example'}},
+        ]
+        config_file = io.StringIO('\n'.join(json.dumps(e) for e in entries))
+
+        # Act & Assert — run sequentially via max_concurrent=1 so call order is deterministic
+        with self.assertRaises(click.ClickException) as ctx:
+            connector_commands.connect_alert_data_sources_batch_command(
+                config_file=config_file, wait=False, max_concurrent=1,
+            )
+        self.assertIn('1 of 2', str(ctx.exception.message))
+
+    @patch('intezer_analyze_cli.connector_commands._wait_for_connector_status')
+    def test_batch_polls_each_connector_when_wait_set(self, mock_poll):
+        # Arrange
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = self._ok_response('cid')
+
+        entries = [
+            {'alert_source': 'crowdstrike', 'connector_name': 'a',
+             'crowdstrike': {'client_id': 'i', 'client_secret': 's'}},
+            {'alert_source': 'sentinel_one', 'connector_name': 'b',
+             'sentinel_one': {'api_token': 't', 'base_url': 'https://example'}},
+        ]
+        config_file = io.StringIO('\n'.join(json.dumps(e) for e in entries))
+
+        # Act
+        connector_commands.connect_alert_data_sources_batch_command(
+            config_file=config_file, wait=True, max_concurrent=2,
+        )
+
+        # Assert
+        self.assertEqual(mock_poll.call_count, 2)
+
+    @patch('intezer_analyze_cli.connector_commands._wait_for_connector_status')
+    def test_batch_does_not_poll_when_wait_not_set(self, mock_poll):
+        # Arrange
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = self._ok_response('cid')
+        entry = {'alert_source': 'crowdstrike', 'connector_name': 'a',
+                 'crowdstrike': {'client_id': 'i', 'client_secret': 's'}}
+        config_file = io.StringIO(json.dumps(entry))
+
+        # Act
+        connector_commands.connect_alert_data_sources_batch_command(
+            config_file=config_file, wait=False, max_concurrent=2,
+        )
+
+        # Assert
+        mock_poll.assert_not_called()
+
+    @patch.dict(os.environ, {'INTEZER_TENANT_ID': 'tenant-x'})
+    def test_batch_includes_tenant_id_in_each_request(self):
+        # Arrange
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = self._ok_response()
+        entries = [
+            {'alert_source': 'crowdstrike', 'connector_name': 'a',
+             'crowdstrike': {'client_id': 'i', 'client_secret': 's'}},
+            {'alert_source': 'sentinel_one', 'connector_name': 'b',
+             'sentinel_one': {'api_token': 't', 'base_url': 'https://example'}},
+        ]
+        config_file = io.StringIO('\n'.join(json.dumps(e) for e in entries))
+
+        # Act
+        connector_commands.connect_alert_data_sources_batch_command(
+            config_file=config_file, wait=False, max_concurrent=2,
+        )
+
+        # Assert
+        for call in self.mock_api_client.request_with_refresh_expired_access_token.call_args_list:
+            self.assertEqual(call.kwargs['data'].get('tenant_id'), 'tenant-x')
 
 
 class CommandDeactivateAlertDataSourceSpec(CliSpec):
