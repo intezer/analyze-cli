@@ -568,16 +568,24 @@ def upload_from_csv(csv_path: str, skip_dedup: bool):
     """Upload subtenants from a CSV file.
 
     \b
-    CSV_PATH: Path to CSV file with 'Tenant name' column.
-    Optional columns: Accounts, Sites, Domains, Envs, Tags (multi-value delimiter: /)
+    CSV_PATH: Path to CSV file. Header matching is case-insensitive and accepts
+    either of the following column names per field:
+      - name (required):     'Tenant name' or 'name'
+      - account_names:       'Accounts', 'accountNames', or 'account_names'
+      - site_names:          'Sites', 'siteNames', or 'site_names'
+      - domains:             'domains'
+      - environments:        'Envs' or 'environments'
+      - tags:                'tags'
+    Multi-value cells may use either ',' or '/' as the separator.
+    The command fails if two headers map to the same field (e.g. 'sites' and 'site_names').
 
     \b
     Examples:
       Upload subtenants from CSV file:
-      $ intezer-cli subtenant upload-from-csv ~/subtenants.csv
+      $ intezer-cli subtenants upload-from-csv ~/subtenants.csv
       \b
       Upload without deduplication:
-      $ intezer-cli subtenant upload-from-csv ~/subtenants.csv --skip-dedup
+      $ intezer-cli subtenants upload-from-csv ~/subtenants.csv --skip-dedup
     """
     try:
         create_global_api()
