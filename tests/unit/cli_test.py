@@ -334,7 +334,7 @@ class SubtenantCliSpec(CliSpec):
 
             # Act
             result = self.runner.invoke(cli.main_cli,
-                                        ['subtenant', 'upload-from-csv', csv_file_path])
+                                        ['subtenants', 'upload-from-csv', csv_file_path])
 
             # Assert
             self.assertEqual(result.exit_code, 0, result.exception)
@@ -351,7 +351,7 @@ class SubtenantCliSpec(CliSpec):
 
             # Act
             result = self.runner.invoke(cli.main_cli,
-                                        ['subtenant', 'upload-from-csv', csv_file_path, '--skip-dedup'])
+                                        ['subtenants', 'upload-from-csv', csv_file_path, '--skip-dedup'])
 
             # Assert
             self.assertEqual(result.exit_code, 0, result.exception)
@@ -360,7 +360,7 @@ class SubtenantCliSpec(CliSpec):
     def test_subtenant_upload_from_csv_file_not_exists_returns_error(self):
         # Act
         result = self.runner.invoke(cli.main_cli,
-                                    ['subtenant', 'upload-from-csv', '/non/existent/file.csv'])
+                                    ['subtenants', 'upload-from-csv', '/non/existent/file.csv'])
 
         # Assert
         self.assertEqual(result.exit_code, 2)
@@ -368,7 +368,7 @@ class SubtenantCliSpec(CliSpec):
 
     def test_subtenant_group_help_shows_subcommands(self):
         # Act
-        result = self.runner.invoke(cli.main_cli, ['subtenant', '--help'])
+        result = self.runner.invoke(cli.main_cli, ['subtenants', '--help'])
 
         # Assert
         self.assertEqual(result.exit_code, 0)
