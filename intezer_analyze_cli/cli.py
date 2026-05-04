@@ -10,6 +10,7 @@ from intezer_sdk.consts import CodeItemType
 from intezer_analyze_cli import __version__
 from intezer_analyze_cli import commands
 from intezer_analyze_cli import connector_commands
+from intezer_analyze_cli import subtenant_commands
 from intezer_analyze_cli import key_store
 from intezer_analyze_cli import utilities
 from intezer_analyze_cli.config import default_config
@@ -552,6 +553,42 @@ def notify_from_csv(csv_path: str):
         logger.exception('Unexpected error occurred')
         click.echo('Unexpected error occurred, please contact us at support@intezer.com '
                    f'and attach the log file in {utilities.log_file_path}')
+
+@main_cli.group('subtenants', cls=AliasedGroup, short_help='Subtenants management commands')
+def subtenants():
+    """Subtenants management commands for Intezer Platform."""
+    pass
+
+
+@subtenants.command('upload-from-csv')
+@click.argument('csv_path', type=click.Path(exists=True, dir_okay=False))
+@click.option('--skip-dedup', is_flag=True, default=False,
+              help='Skip deduplication check against existing subtenants')
+def upload_from_csv(csv_path: str, skip_dedup: bool):
+    """Upload subtenants from a CSV file.
+
+    \b
+    CSV_PATH: Path to CSV file with 'Tenant name' column.
+    Optional columns: Accounts, Sites, Domains, Envs, Tags (multi-value delimiter: /)
+
+    \b
+    Examples:
+      Upload subtenants from CSV file:
+      $ intezer-cli subtenant upload-from-csv ~/subtenants.csv
+      \b
+      Upload without deduplication:
+      $ intezer-cli subtenant upload-from-csv ~/subtenants.csv --skip-dedup
+    """
+    try:
+        create_global_api()
+        subtenant_commands.upload_subtenants_from_csv_command(csv_path=csv_path, skip_dedup=skip_dedup)
+    except click.Abort:
+        raise
+    except Exception:
+        logger.exception('Unexpected error occurred')
+        click.echo('Unexpected error occurred, please contact us at support@intezer.com '
+                   f'and attach the log file in {utilities.log_file_path}')
+
 
 if __name__ == '__main__':
     try:

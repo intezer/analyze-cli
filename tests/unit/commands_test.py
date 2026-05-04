@@ -18,6 +18,7 @@ from intezer_sdk import errors as sdk_errors
 import intezer_analyze_cli.key_store as key_store
 from intezer_analyze_cli import commands
 from intezer_analyze_cli import connector_commands
+from intezer_analyze_cli import subtenant_commands
 from intezer_analyze_cli.cli import create_global_api
 from tests.unit.cli_test import CliSpec
 
@@ -1144,4 +1145,202 @@ class CommandWaitForConnectorStatusSpec(CliSpec):
         status_calls = [c for c in self.mock_spinner.write.call_args_list
                         if 'Status: verifying_credentials' in str(c)]
         self.assertEqual(len(status_calls), 1)
+
+
+class CommandSubtenantUploadSpec(CliSpec):
+    def setUp(self):
+        super(CommandSubtenantUploadSpec, self).setUp()
+
+        self.mock_api_client = MagicMock()
+        api_patcher = patch('intezer_analyze_cli.subtenant_commands.api.get_global_api',
+                            return_value=self.mock_api_client)
+        api_patcher.start()
+        self.addCleanup(api_patcher.stop)
+
+        raise_for_status_patcher = patch('intezer_analyze_cli.subtenant_commands.raise_for_status')
+        raise_for_status_patcher.start()
+        self.addCleanup(raise_for_status_patcher.stop)
+
+    def test_read_subtenants_from_csv_correct_parse(self):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            csv_path = os.path.join(temp_dir, 'subtenants.csv')
+            with open(csv_path, 'w') as f:
+                f.write('Tenant name,Accounts,Sites,Domains,Envs,Tags\n')
+                f.write('TestTenant,Acct1/Acct2,Site1,example.com,Prod/Dev,tag1/tag2\n')
+
+            # Act
+            result = subtenant_commands._read_subtenants_from_csv(csv_path)
+
+            # Assert
+            self.assertEqual(len(result), 1)
+            self.assertEqual(result[0]['name'], 'TestTenant')
+            self.assertEqual(result[0]['account_names'], ['Acct1', 'Acct2'])
+            self.assertEqual(result[0]['site_names'], ['Site1'])
+            self.assertEqual(result[0]['domains'], ['example.com'])
+            self.assertEqual(result[0]['environments'], ['Prod', 'Dev'])
+            self.assertEqual(result[0]['tags'], ['tag1', 'tag2'])
+
+    def test_read_subtenants_from_csv_omits_empty_optional_fields(self):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            csv_path = os.path.join(temp_dir, 'subtenants.csv')
+            with open(csv_path, 'w') as f:
+                f.write('Tenant name,Accounts,Sites\n')
+                f.write('TestTenant,,\n')
+
+            # Act
+            result = subtenant_commands._read_subtenants_from_csv(csv_path)
+
+            # Assert
+            self.assertEqual(len(result), 1)
+            self.assertEqual(result[0], {'name': 'TestTenant'})
+            self.assertNotIn('account_names', result[0])
+            self.assertNotIn('site_names', result[0])
+
+    def test_read_subtenants_from_csv_missing_tenant_name_column(self):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            csv_path = os.path.join(temp_dir, 'subtenants.csv')
+            with open(csv_path, 'w') as f:
+                f.write('Accounts,Sites\nAcct1,Site1\n')
+
+            # Act & Assert
+            with self.assertRaises(ValueError):
+                subtenant_commands._read_subtenants_from_csv(csv_path)
+
+    def test_read_subtenants_from_csv_alternate_format(self):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            csv_path = os.path.join(temp_dir, 'subtenants.csv')
+            with open(csv_path, 'w') as f:
+                f.write('"name","sites","environments","accountNames","domains"\n')
+                f.write('"Aerosafe","Aerosafe Global, AeroSafe","","",""\n')
+                f.write('"Palmer College","Palmer College of Chiropractic, Palmer College","","",""\n')
+
+            # Act
+            result = subtenant_commands._read_subtenants_from_csv(csv_path)
+
+            # Assert
+            self.assertEqual(len(result), 2)
+            self.assertEqual(result[0]['name'], 'Aerosafe')
+            self.assertEqual(result[0]['site_names'], ['Aerosafe Global', 'AeroSafe'])
+            self.assertEqual(result[1]['name'], 'Palmer College')
+            self.assertEqual(result[1]['site_names'], ['Palmer College of Chiropractic', 'Palmer College'])
+
+    def test_read_subtenants_from_csv_fails_on_conflicting_headers(self):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            csv_path = os.path.join(temp_dir, 'subtenants.csv')
+            with open(csv_path, 'w') as f:
+                f.write('name,sites,site_names\nTestTenant,SiteA,SiteB\n')
+
+            # Act & Assert
+            with self.assertRaises(ValueError) as ctx:
+                subtenant_commands._read_subtenants_from_csv(csv_path)
+            self.assertIn('conflicting headers', str(ctx.exception))
+
+    def test_read_subtenants_from_csv_empty_data(self):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            csv_path = os.path.join(temp_dir, 'subtenants.csv')
+            with open(csv_path, 'w') as f:
+                f.write('Tenant name,Accounts\n')
+
+            # Act & Assert
+            with self.assertRaises(ValueError):
+                subtenant_commands._read_subtenants_from_csv(csv_path)
+
+    def test_create_subtenants_batch_calls_post_api(self):
+        # Arrange
+        mock_response = MagicMock()
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = mock_response
+        batch = [{'name': 'Tenant1'}, {'name': 'Tenant2'}]
+
+        # Act
+        subtenant_commands._create_subtenants_batch(batch)
+
+        # Assert
+        self.mock_api_client.request_with_refresh_expired_access_token.assert_called_once_with(
+            method='POST',
+            path='/subtenants',
+            data={'subtenants': [{'name': 'Tenant1'}, {'name': 'Tenant2'}]}
+        )
+
+    @patch.dict(os.environ, {'INTEZER_TENANT_ID': 'tenant-123'})
+    def test_create_subtenants_batch_includes_tenant_id(self):
+        # Arrange
+        mock_response = MagicMock()
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = mock_response
+        batch = [{'name': 'Tenant1'}]
+
+        # Act
+        subtenant_commands._create_subtenants_batch(batch)
+
+        # Assert
+        call_kwargs = self.mock_api_client.request_with_refresh_expired_access_token.call_args
+        self.assertEqual(call_kwargs[1]['data']['tenant_id'], 'tenant-123')
+
+    def test_filter_duplicates_by_name(self):
+        # Arrange
+        new = [{'name': 'Tenant1'}, {'name': 'Tenant2'}]
+        existing = [{'name': 'tenant1'}]  # case-insensitive match
+
+        # Act
+        filtered, skipped = subtenant_commands._filter_duplicates(new, existing)
+
+        # Assert
+        self.assertEqual(len(filtered), 1)
+        self.assertEqual(filtered[0]['name'], 'Tenant2')
+        self.assertEqual(skipped, 1)
+
+    def test_filter_duplicates_by_field_values(self):
+        # Arrange
+        new = [{'name': 'NewTenant', 'account_names': ['Acct1']},
+               {'name': 'UniqueTenant', 'account_names': ['Acct3']}]
+        existing = [{'name': 'ExistingTenant', 'account_names': ['acct1']}]
+
+        # Act
+        filtered, skipped = subtenant_commands._filter_duplicates(new, existing)
+
+        # Assert
+        self.assertEqual(len(filtered), 1)
+        self.assertEqual(filtered[0]['name'], 'UniqueTenant')
+        self.assertEqual(skipped, 1)
+
+    @patch('intezer_analyze_cli.subtenant_commands._create_subtenants_batch')
+    @patch('intezer_analyze_cli.subtenant_commands._fetch_existing_subtenants')
+    def test_upload_with_skip_dedup_does_not_fetch_existing(self, fetch_mock, create_mock):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            csv_path = os.path.join(temp_dir, 'subtenants.csv')
+            with open(csv_path, 'w') as f:
+                f.write('Tenant name\nTestTenant\n')
+
+            # Act
+            with patch('click.echo'):
+                subtenant_commands.upload_subtenants_from_csv_command(csv_path, skip_dedup=True)
+
+            # Assert
+            fetch_mock.assert_not_called()
+            create_mock.assert_called_once()
+
+    @patch('intezer_analyze_cli.subtenant_commands._create_subtenants_batch')
+    @patch('intezer_analyze_cli.subtenant_commands._fetch_existing_subtenants')
+    def test_upload_with_dedup_fetches_existing(self, fetch_mock, create_mock):
+        # Arrange
+        fetch_mock.return_value = []
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            csv_path = os.path.join(temp_dir, 'subtenants.csv')
+            with open(csv_path, 'w') as f:
+                f.write('Tenant name\nTestTenant\n')
+
+            # Act
+            with patch('click.echo'):
+                subtenant_commands.upload_subtenants_from_csv_command(csv_path, skip_dedup=False)
+
+            # Assert
+            fetch_mock.assert_called_once()
+            create_mock.assert_called_once()
 

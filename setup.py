@@ -19,11 +19,11 @@ with open(rel('intezer_analyze_cli', '__init__.py'), 'r') as f:
 
 install_requires = [
     'click==7.1.2',
-    'intezer-sdk>=1.25.0,<2',
+    'intezer-sdk>=1.26.0,<2',
     'yaspin>=3.0.0,<4'
 ]
 tests_require = [
-    'pytest==9.0.2',
+    'pytest==9.0.3',
     'responses==0.26.0'
 ]
 
