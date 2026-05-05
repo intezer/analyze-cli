@@ -314,6 +314,67 @@ class AlertsSpec(CliSpec):
         self.assertEqual(result.exit_code, 2)
         self.assertTrue(b'does not exist' in result.stdout_bytes)
 
+class SubtenantCliSpec(CliSpec):
+    def setUp(self):
+        super(SubtenantCliSpec, self).setUp()
+
+        create_global_api_patcher = patch('intezer_analyze_cli.cli.create_global_api')
+        self.create_global_api_patcher_mock = create_global_api_patcher.start()
+        self.addCleanup(create_global_api_patcher.stop)
+
+        key_store.get_stored_api_key = MagicMock(return_value='api_key')
+
+    @patch('intezer_analyze_cli.subtenant_commands.upload_subtenants_from_csv_command')
+    def test_subtenant_upload_from_csv_success(self, upload_mock):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            csv_file_path = os.path.join(temp_dir, 'subtenants.csv')
+            with open(csv_file_path, 'w') as f:
+                f.write('Tenant name,Accounts,Sites\nTestTenant,Acct1,Site1\n')
+
+            # Act
+            result = self.runner.invoke(cli.main_cli,
+                                        ['subtenants', 'upload-from-csv', csv_file_path])
+
+            # Assert
+            self.assertEqual(result.exit_code, 0, result.exception)
+            self.assertTrue(upload_mock.called)
+            upload_mock.assert_called_once_with(csv_path=csv_file_path, skip_dedup=False)
+
+    @patch('intezer_analyze_cli.subtenant_commands.upload_subtenants_from_csv_command')
+    def test_subtenant_upload_from_csv_with_skip_dedup(self, upload_mock):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            csv_file_path = os.path.join(temp_dir, 'subtenants.csv')
+            with open(csv_file_path, 'w') as f:
+                f.write('Tenant name\nTestTenant\n')
+
+            # Act
+            result = self.runner.invoke(cli.main_cli,
+                                        ['subtenants', 'upload-from-csv', csv_file_path, '--skip-dedup'])
+
+            # Assert
+            self.assertEqual(result.exit_code, 0, result.exception)
+            upload_mock.assert_called_once_with(csv_path=csv_file_path, skip_dedup=True)
+
+    def test_subtenant_upload_from_csv_file_not_exists_returns_error(self):
+        # Act
+        result = self.runner.invoke(cli.main_cli,
+                                    ['subtenants', 'upload-from-csv', '/non/existent/file.csv'])
+
+        # Assert
+        self.assertEqual(result.exit_code, 2)
+        self.assertTrue(b'does not exist' in result.stdout_bytes)
+
+    def test_subtenant_group_help_shows_subcommands(self):
+        # Act
+        result = self.runner.invoke(cli.main_cli, ['subtenants', '--help'])
+
+        # Assert
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn(b'upload-from-csv', result.stdout_bytes)
+
+
 class AlertsDataSourcesCliSpec(CliSpec):
     def setUp(self):
         super(AlertsDataSourcesCliSpec, self).setUp()

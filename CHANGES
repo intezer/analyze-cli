@@ -1,6 +1,7 @@
 1.15.0
 -----
 - alerts-data-sources connect-batch: connect multiple alert data sources from a JSONL file with up to 5 concurrent requests and a progress bar
+- subtenants upload-from-csv: bulk-create subtenants from a CSV file, with header aliases for both `Tenant name`/`name` and `Accounts`/`accountNames`/`Sites`/`sites`/`Envs`/`environments` styles, conflict detection on duplicate headers, and value separation by `,` or `/`
 
 1.14.0
 -----
