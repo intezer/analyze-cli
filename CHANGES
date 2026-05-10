@@ -1,3 +1,9 @@
+1.16.0
+-----
+- alerts-data-sources deactivate-batch: deactivate multiple alert data sources concurrently, either from a text file of connector IDs (`--config`) or every connector currently in `active`/`offline`/`update_failed` (`--all-active`)
+- alerts-data-sources activate-batch: activate multiple alert data sources concurrently, either from a text file of connector IDs (`--config`) or every currently deactivated connector (`--all-deactivated`)
+- alerts-data-sources --wait: cap polling at 30 minutes; deactivate now treats any status other than `deactivated`/`deactivating` as a failure since the API has no dedicated deactivation-failed status
+
 1.15.0
 -----
 - alerts-data-sources connect-batch: connect multiple alert data sources from a JSONL file with up to 5 concurrent requests and a progress bar
