@@ -5,6 +5,7 @@ import os
 import re
 import time
 from http import HTTPStatus
+from urllib.parse import urlencode
 
 import click
 from intezer_sdk import api
@@ -15,7 +16,15 @@ _CONNECTOR_NAME_PATTERN = re.compile(r'^[a-z0-9-]*$')
 
 _TERMINAL_SUCCESS_STATUSES = {'pending', 'active', 'deactivated'}
 _TERMINAL_FAILURE_STATUSES = {'credentials_verification_failed', 'deployment_failed', 'update_failed'}
+_DEACTIVATE_SUCCESS_STATUSES = {'deactivated'}
+_DEACTIVATE_IN_PROGRESS_STATUSES = {'deactivating'}
+_DEACTIVATABLE_STATUSES = ('active', 'offline', 'update_failed')
+_REACTIVATE_SUCCESS_STATUSES = {'active'}
+_REACTIVATE_IN_PROGRESS_STATUSES = {'reactivating'}
+_REACTIVATABLE_STATUSES = ('deactivated',)
+_LIST_PAGE_SIZE = 100
 _POLL_INTERVAL_SECONDS = 5
+_WAIT_TIMEOUT_SECONDS = 30 * 60
 _BATCH_DEFAULT_MAX_CONCURRENT = 5
 
 
@@ -169,6 +178,116 @@ def _connect_one(request_body: dict, wait: bool, silent: bool = False) -> str | 
 
 
 def deactivate_alert_data_source_command(connector_id: str, wait: bool):
+    _deactivate_one(connector_id, wait=wait, silent=False)
+
+
+def deactivate_alert_data_sources_batch_command(config_file,
+                                                all_active: bool,
+                                                wait: bool,
+                                                max_concurrent: int = _BATCH_DEFAULT_MAX_CONCURRENT):
+    if all_active:
+        connector_ids = _list_deactivatable_connector_ids()
+        if not connector_ids:
+            click.echo('No connectors eligible for deactivation found')
+            return
+    else:
+        connector_ids = _parse_connector_ids_strict(config_file.read())
+
+    failures: list[tuple[str, str]] = []
+    successes: list[str] = []
+
+    label = f'Deactivating {len(connector_ids)} connectors'
+    with click.progressbar(length=len(connector_ids), label=label) as bar:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_concurrent) as executor:
+            future_to_id = {
+                executor.submit(_deactivate_one, connector_id, wait, True): connector_id
+                for connector_id in connector_ids
+            }
+            for future in concurrent.futures.as_completed(future_to_id):
+                connector_id = future_to_id[future]
+                try:
+                    future.result()
+                    successes.append(connector_id)
+                except Exception as exc:
+                    failures.append((connector_id, str(exc)))
+                bar.update(1)
+
+    for connector_id in successes:
+        click.echo(f'  ✓ {connector_id}')
+    for connector_id, error in failures:
+        click.echo(f'  ✗ {connector_id}: {error}', err=True)
+
+    if failures:
+        raise click.ClickException(
+            f'{len(failures)} of {len(connector_ids)} connectors failed'
+        )
+
+    click.echo(f'All {len(connector_ids)} connectors processed successfully')
+
+
+def _parse_connector_ids_strict(content: str) -> list[str]:
+    connector_ids: list[str] = []
+    seen: set[str] = set()
+    for line_no, raw in enumerate(content.splitlines(), 1):
+        line = raw.strip()
+        if not line or line.startswith('#'):
+            continue
+        if line in seen:
+            continue
+        seen.add(line)
+        connector_ids.append(line)
+
+    if not connector_ids:
+        click.echo('Error: config file contains no connector IDs', err=True)
+        raise click.Abort()
+    return connector_ids
+
+
+def _list_deactivatable_connector_ids() -> list[str]:
+    return _list_connector_ids_by_statuses(_DEACTIVATABLE_STATUSES)
+
+
+def _list_reactivatable_connector_ids() -> list[str]:
+    return _list_connector_ids_by_statuses(_REACTIVATABLE_STATUSES)
+
+
+def _list_connector_ids_by_statuses(statuses: tuple[str, ...]) -> list[str]:
+    api_client = api.get_global_api()
+    extra_params = _get_extra_params()
+    connector_ids: list[str] = []
+
+    for status in statuses:
+        offset = 0
+        while True:
+            query = urlencode({
+                'status': status,
+                'limit': _LIST_PAGE_SIZE,
+                'offset': offset,
+                **extra_params,
+            })
+            response = api_client.request_with_refresh_expired_access_token(
+                method='GET',
+                path=f'/alerts-data-sources?{query}',
+            )
+            _print_bad_request(response)
+            raise_for_status(response)
+            result = (response.json() or {}).get('result') or {}
+            page = result.get('alerts_data_sources') or []
+            total = result.get('alerts_data_sources_count') or 0
+
+            for item in page:
+                connector_id = item.get('id')
+                if connector_id:
+                    connector_ids.append(connector_id)
+
+            offset += len(page)
+            if not page or offset >= total:
+                break
+
+    return connector_ids
+
+
+def _deactivate_one(connector_id: str, wait: bool, silent: bool = False) -> None:
     api_client = api.get_global_api()
     extra_params = _get_extra_params()
     response = api_client.request_with_refresh_expired_access_token(
@@ -176,18 +295,79 @@ def deactivate_alert_data_source_command(connector_id: str, wait: bool):
         path=f'/alerts-data-sources/{connector_id}/deactivate',
         **({'data': extra_params} if extra_params else {})
     )
-    _print_bad_request(response)
+    if silent and response.status_code == HTTPStatus.BAD_REQUEST:
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = response.text
+        raise click.ClickException(f'bad request: {payload}')
+    if not silent:
+        _print_bad_request(response)
     raise_for_status(response)
     result = response.json()
     result_url = result.get('result_url')
 
-    click.echo(f'Deactivate request sent for "{connector_id}"')
+    if not silent:
+        click.echo(f'Deactivate request sent for "{connector_id}"')
 
     if wait and result_url:
-        _wait_for_connector_status(result_url)
+        _wait_for_connector_status(
+            result_url,
+            silent=silent,
+            success_statuses=_DEACTIVATE_SUCCESS_STATUSES,
+            in_progress_statuses=_DEACTIVATE_IN_PROGRESS_STATUSES,
+        )
 
 
 def reactivate_alert_data_source_command(connector_id: str, wait: bool):
+    _reactivate_one(connector_id, wait=wait, silent=False)
+
+
+def reactivate_alert_data_sources_batch_command(config_file,
+                                                all_deactivated: bool,
+                                                wait: bool,
+                                                max_concurrent: int = _BATCH_DEFAULT_MAX_CONCURRENT):
+    if all_deactivated:
+        connector_ids = _list_reactivatable_connector_ids()
+        if not connector_ids:
+            click.echo('No deactivated connectors found')
+            return
+    else:
+        connector_ids = _parse_connector_ids_strict(config_file.read())
+
+    failures: list[tuple[str, str]] = []
+    successes: list[str] = []
+
+    label = f'Activating {len(connector_ids)} connectors'
+    with click.progressbar(length=len(connector_ids), label=label) as bar:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_concurrent) as executor:
+            future_to_id = {
+                executor.submit(_reactivate_one, connector_id, wait, True): connector_id
+                for connector_id in connector_ids
+            }
+            for future in concurrent.futures.as_completed(future_to_id):
+                connector_id = future_to_id[future]
+                try:
+                    future.result()
+                    successes.append(connector_id)
+                except Exception as exc:
+                    failures.append((connector_id, str(exc)))
+                bar.update(1)
+
+    for connector_id in successes:
+        click.echo(f'  ✓ {connector_id}')
+    for connector_id, error in failures:
+        click.echo(f'  ✗ {connector_id}: {error}', err=True)
+
+    if failures:
+        raise click.ClickException(
+            f'{len(failures)} of {len(connector_ids)} connectors failed'
+        )
+
+    click.echo(f'All {len(connector_ids)} connectors processed successfully')
+
+
+def _reactivate_one(connector_id: str, wait: bool, silent: bool = False) -> None:
     api_client = api.get_global_api()
     extra_params = _get_extra_params()
     response = api_client.request_with_refresh_expired_access_token(
@@ -195,15 +375,28 @@ def reactivate_alert_data_source_command(connector_id: str, wait: bool):
         path=f'/alerts-data-sources/{connector_id}/reactivate',
         **({'data': extra_params} if extra_params else {})
     )
-    _print_bad_request(response)
+    if silent and response.status_code == HTTPStatus.BAD_REQUEST:
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = response.text
+        raise click.ClickException(f'bad request: {payload}')
+    if not silent:
+        _print_bad_request(response)
     raise_for_status(response)
     result = response.json()
     result_url = result.get('result_url')
 
-    click.echo(f'Activate request sent for "{connector_id}"')
+    if not silent:
+        click.echo(f'Activate request sent for "{connector_id}"')
 
     if wait and result_url:
-        _wait_for_connector_status(result_url)
+        _wait_for_connector_status(
+            result_url,
+            silent=silent,
+            success_statuses=_REACTIVATE_SUCCESS_STATUSES,
+            in_progress_statuses=_REACTIVATE_IN_PROGRESS_STATUSES,
+        )
 
 
 def update_alert_data_source_command(connector_id: str, config_file, wait: bool):
@@ -246,10 +439,15 @@ def _maybe_spinner(silent: bool):
             yield sp
 
 
-def _wait_for_connector_status(result_url: str, silent: bool = False):
+def _wait_for_connector_status(result_url: str,
+                               silent: bool = False,
+                               success_statuses: set[str] = _TERMINAL_SUCCESS_STATUSES,
+                               in_progress_statuses: set[str] | None = None,
+                               timeout_seconds: float = _WAIT_TIMEOUT_SECONDS):
     api_client = api.get_global_api()
     base_url = api_client.base_url.removesuffix('api/').rstrip('/')
     last_status = None
+    deadline = time.monotonic() + timeout_seconds
 
     with _maybe_spinner(silent) as sp:
         while True:
@@ -267,13 +465,17 @@ def _wait_for_connector_status(result_url: str, silent: bool = False):
                 sp.text = f'Waiting ({status})'
                 last_status = status
 
-            if status in _TERMINAL_SUCCESS_STATUSES:
+            if status in success_statuses:
                 if not silent:
                     sp.ok('✓')
                     click.echo('Operation completed successfully')
                 return
 
-            if status in _TERMINAL_FAILURE_STATUSES:
+            is_failure = (
+                status in _TERMINAL_FAILURE_STATUSES
+                or (in_progress_statuses is not None and status not in in_progress_statuses)
+            )
+            if is_failure:
                 error_detail = result.get('error', '')
                 if not silent:
                     sp.fail('✗')
@@ -283,5 +485,13 @@ def _wait_for_connector_status(result_url: str, silent: bool = False):
                 if silent and error_detail:
                     message = f'{message}: {error_detail}'
                 raise click.ClickException(message)
+
+            if time.monotonic() >= deadline:
+                if not silent:
+                    sp.fail('✗')
+                raise click.ClickException(
+                    f'Timed out after {int(timeout_seconds)}s waiting for terminal status '
+                    f'(last status: {status})'
+                )
 
             time.sleep(_POLL_INTERVAL_SECONDS)

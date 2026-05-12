@@ -868,7 +868,12 @@ class CommandDeactivateAlertDataSourceSpec(CliSpec):
         connector_commands.deactivate_alert_data_source_command(connector_id='acme-corp', wait=True)
 
         # Assert
-        mock_wait.assert_called_once_with('/alerts-data-sources/acme-corp/connect-status')
+        mock_wait.assert_called_once_with(
+            '/alerts-data-sources/acme-corp/connect-status',
+            silent=False,
+            success_statuses={'deactivated'},
+            in_progress_statuses={'deactivating'},
+        )
 
 
 class CommandActivateAlertDataSourceSpec(CliSpec):
@@ -911,7 +916,12 @@ class CommandActivateAlertDataSourceSpec(CliSpec):
         connector_commands.reactivate_alert_data_source_command(connector_id='acme-corp', wait=True)
 
         # Assert
-        mock_wait.assert_called_once_with('/alerts-data-sources/acme-corp/connect-status')
+        mock_wait.assert_called_once_with(
+            '/alerts-data-sources/acme-corp/connect-status',
+            silent=False,
+            success_statuses={'active'},
+            in_progress_statuses={'reactivating'},
+        )
 
 
 class CommandUpdateAlertDataSourceSpec(CliSpec):
@@ -1126,6 +1136,55 @@ class CommandWaitForConnectorStatusSpec(CliSpec):
         self.assertEqual(self.mock_api_client.request_with_refresh_expired_access_token.call_count, 3)
         self.assertEqual(self.mock_sleep.call_count, 2)
         self.mock_sleep.assert_called_with(5)
+
+    def test_wait_with_deactivate_statuses_succeeds_only_on_deactivated(self):
+        # Arrange
+        self.mock_api_client.request_with_refresh_expired_access_token.side_effect = [
+            self._make_status_response('deactivating'),
+            self._make_status_response('deactivated'),
+        ]
+
+        # Act
+        connector_commands._wait_for_connector_status(
+            '/alerts-data-sources/acme-corp/connect-status',
+            success_statuses={'deactivated'},
+            in_progress_statuses={'deactivating'},
+        )
+
+        # Assert
+        self.assertEqual(self.mock_api_client.request_with_refresh_expired_access_token.call_count, 2)
+
+    def test_wait_with_deactivate_statuses_fails_when_status_returns_to_active(self):
+        # Arrange
+        self.mock_api_client.request_with_refresh_expired_access_token.side_effect = [
+            self._make_status_response('deactivating'),
+            self._make_status_response('active'),
+        ]
+
+        # Act & Assert
+        with self.assertRaises(click.exceptions.ClickException) as ctx:
+            connector_commands._wait_for_connector_status(
+                '/alerts-data-sources/acme-corp/connect-status',
+                success_statuses={'deactivated'},
+                in_progress_statuses={'deactivating'},
+            )
+
+        self.assertIn('active', str(ctx.exception))
+
+    def test_wait_raises_on_timeout(self):
+        # Arrange
+        self.mock_api_client.request_with_refresh_expired_access_token.return_value = \
+            self._make_status_response('verifying_credentials')
+        with patch('intezer_analyze_cli.connector_commands.time.monotonic',
+                   side_effect=[0.0, 0.0, 9999.0]):
+            # Act & Assert
+            with self.assertRaises(click.exceptions.ClickException) as ctx:
+                connector_commands._wait_for_connector_status(
+                    '/alerts-data-sources/acme-corp/connect-status',
+                    timeout_seconds=60,
+                )
+
+        self.assertIn('Timed out', str(ctx.exception))
 
     def test_wait_prints_status_transitions(self):
         # Arrange

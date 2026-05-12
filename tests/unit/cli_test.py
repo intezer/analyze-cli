@@ -622,6 +622,167 @@ class AlertsDataSourcesCliSpec(CliSpec):
         # Assert
         self.assertEqual(result.exit_code, 2)
 
+    @patch('intezer_analyze_cli.connector_commands.deactivate_alert_data_sources_batch_command')
+    def test_deactivate_batch_with_config_file(self, batch_mock):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = os.path.join(temp_dir, 'connector-ids.txt')
+            with open(config_path, 'w') as f:
+                f.write('acme-cs\nacme-s1\n')
+
+            # Act
+            result = self.runner.invoke(cli.main_cli, [
+                'alerts-data-sources', 'deactivate-batch',
+                '--config', config_path,
+            ])
+
+            # Assert
+            self.assertEqual(result.exit_code, 0, result.exception)
+            batch_mock.assert_called_once_with(
+                config_file=ANY,
+                all_active=False,
+                wait=False,
+                max_concurrent=5,
+            )
+
+    @patch('intezer_analyze_cli.connector_commands.deactivate_alert_data_sources_batch_command')
+    def test_deactivate_batch_passes_through_flags(self, batch_mock):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = os.path.join(temp_dir, 'connector-ids.txt')
+            with open(config_path, 'w') as f:
+                f.write('acme-cs\n')
+
+            # Act
+            result = self.runner.invoke(cli.main_cli, [
+                'alerts-data-sources', 'deactivate-batch',
+                '--config', config_path,
+                '--wait',
+                '--max-concurrent', '3',
+            ])
+
+            # Assert
+            self.assertEqual(result.exit_code, 0, result.exception)
+            batch_mock.assert_called_once_with(
+                config_file=ANY,
+                all_active=False,
+                wait=True,
+                max_concurrent=3,
+            )
+
+    @patch('intezer_analyze_cli.connector_commands.deactivate_alert_data_sources_batch_command')
+    def test_deactivate_batch_all_active(self, batch_mock):
+        # Act
+        result = self.runner.invoke(cli.main_cli, [
+            'alerts-data-sources', 'deactivate-batch',
+            '--all-active',
+        ])
+
+        # Assert
+        self.assertEqual(result.exit_code, 0, result.exception)
+        batch_mock.assert_called_once_with(
+            config_file=None,
+            all_active=True,
+            wait=False,
+            max_concurrent=5,
+        )
+
+    def test_deactivate_batch_requires_config_or_all_active(self):
+        # Act
+        result = self.runner.invoke(cli.main_cli, [
+            'alerts-data-sources', 'deactivate-batch',
+        ])
+
+        # Assert
+        self.assertEqual(result.exit_code, 1)
+        self.assertIn(b'--config or --all-active', result.stdout_bytes)
+
+    @patch('intezer_analyze_cli.connector_commands.reactivate_alert_data_sources_batch_command')
+    def test_activate_batch_with_config_file(self, batch_mock):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = os.path.join(temp_dir, 'connector-ids.txt')
+            with open(config_path, 'w') as f:
+                f.write('acme-cs\nacme-s1\n')
+
+            # Act
+            result = self.runner.invoke(cli.main_cli, [
+                'alerts-data-sources', 'activate-batch',
+                '--config', config_path,
+            ])
+
+            # Assert
+            self.assertEqual(result.exit_code, 0, result.exception)
+            batch_mock.assert_called_once_with(
+                config_file=ANY,
+                all_deactivated=False,
+                wait=False,
+                max_concurrent=5,
+            )
+
+    @patch('intezer_analyze_cli.connector_commands.reactivate_alert_data_sources_batch_command')
+    def test_activate_batch_all_deactivated(self, batch_mock):
+        # Act
+        result = self.runner.invoke(cli.main_cli, [
+            'alerts-data-sources', 'activate-batch',
+            '--all-deactivated', '--wait',
+        ])
+
+        # Assert
+        self.assertEqual(result.exit_code, 0, result.exception)
+        batch_mock.assert_called_once_with(
+            config_file=None,
+            all_deactivated=True,
+            wait=True,
+            max_concurrent=5,
+        )
+
+    def test_activate_batch_requires_config_or_all_deactivated(self):
+        # Act
+        result = self.runner.invoke(cli.main_cli, [
+            'alerts-data-sources', 'activate-batch',
+        ])
+
+        # Assert
+        self.assertEqual(result.exit_code, 1)
+        self.assertIn(b'--config or --all-deactivated', result.stdout_bytes)
+
+    def test_activate_batch_rejects_both_config_and_all_deactivated(self):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = os.path.join(temp_dir, 'connector-ids.txt')
+            with open(config_path, 'w') as f:
+                f.write('acme-cs\n')
+
+            # Act
+            result = self.runner.invoke(cli.main_cli, [
+                'alerts-data-sources', 'activate-batch',
+                '--config', config_path,
+                '--all-deactivated',
+            ])
+
+            # Assert
+            self.assertEqual(result.exit_code, 1)
+            self.assertIn(b'mutually exclusive', result.stdout_bytes)
+
+    def test_deactivate_batch_rejects_both_config_and_all_active(self):
+        # Arrange
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config_path = os.path.join(temp_dir, 'connector-ids.txt')
+            with open(config_path, 'w') as f:
+                f.write('acme-cs\n')
+
+            # Act
+            result = self.runner.invoke(cli.main_cli, [
+                'alerts-data-sources', 'deactivate-batch',
+                '--config', config_path,
+                '--all-active',
+            ])
+
+            # Assert
+            self.assertEqual(result.exit_code, 1)
+            self.assertIn(b'mutually exclusive', result.stdout_bytes)
+
     @patch('intezer_analyze_cli.connector_commands.reactivate_alert_data_source_command')
     def test_activate_invokes_command_with_correct_args(self, activate_mock):
         # Act

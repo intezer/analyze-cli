@@ -464,6 +464,53 @@ def deactivate_data_source(connector_id: str, wait: bool):
                    f'and attach the log file in {utilities.log_file_path}', err=True)
 
 
+@alerts_data_sources.command('deactivate-batch',
+                             short_help='Deactivate multiple connectors from a file or all active connectors')
+@click.option('--config', 'config_file', type=click.File('r'),
+              help='Path to text file with one connector ID per line. Use - for stdin. '
+                   'Blank lines and lines starting with # are ignored.')
+@click.option('--all-active', is_flag=True, default=False,
+              help='Deactivate every currently active connector')
+@click.option('--wait', is_flag=True, default=False, help='Poll each connector until terminal state')
+@click.option('--max-concurrent', type=click.IntRange(min=1, max=5), default=5, show_default=True,
+              help='Maximum number of connectors processed in parallel (capped at 5)')
+def deactivate_data_sources_batch(config_file, all_active: bool, wait: bool, max_concurrent: int):
+    """Deactivate multiple alert data source connectors concurrently.
+
+    \b
+    Provide either --config (a file listing connector IDs, one per line) or
+    --all-active (deactivates every connector currently in the active state).
+
+    \b
+    Examples:
+      $ intezer-cli alerts-data-sources deactivate-batch --config connector-ids.txt
+      $ intezer-cli alerts-data-sources deactivate-batch --config - < connector-ids.txt --wait
+      $ intezer-cli alerts-data-sources deactivate-batch --all-active --wait
+    """
+    if all_active and config_file is not None:
+        click.echo('Error: --config and --all-active are mutually exclusive', err=True)
+        raise click.Abort()
+    if not all_active and config_file is None:
+        click.echo('Error: one of --config or --all-active is required', err=True)
+        raise click.Abort()
+    try:
+        create_global_api()
+        connector_commands.deactivate_alert_data_sources_batch_command(
+            config_file=config_file,
+            all_active=all_active,
+            wait=wait,
+            max_concurrent=max_concurrent,
+        )
+    except click.Abort:
+        raise
+    except click.ClickException:
+        raise
+    except Exception:
+        logger.exception('Unexpected error occurred')
+        click.echo('Unexpected error occurred, please contact us at support@intezer.com '
+                   f'and attach the log file in {utilities.log_file_path}', err=True)
+
+
 @alerts_data_sources.command('reactivate', short_help='Reactivate a connector')
 @click.argument('connector_id', type=click.STRING)
 @click.option('--wait', is_flag=True, default=False, help='Poll status until terminal state')
@@ -481,6 +528,53 @@ def reactivate_data_source(connector_id: str, wait: bool):
     try:
         create_global_api()
         connector_commands.reactivate_alert_data_source_command(connector_id=connector_id, wait=wait)
+    except click.Abort:
+        raise
+    except click.ClickException:
+        raise
+    except Exception:
+        logger.exception('Unexpected error occurred')
+        click.echo('Unexpected error occurred, please contact us at support@intezer.com '
+                   f'and attach the log file in {utilities.log_file_path}', err=True)
+
+
+@alerts_data_sources.command('activate-batch',
+                             short_help='Activate multiple connectors from a file or all deactivated connectors')
+@click.option('--config', 'config_file', type=click.File('r'),
+              help='Path to text file with one connector ID per line. Use - for stdin. '
+                   'Blank lines and lines starting with # are ignored.')
+@click.option('--all-deactivated', is_flag=True, default=False,
+              help='Activate every currently deactivated connector')
+@click.option('--wait', is_flag=True, default=False, help='Poll each connector until terminal state')
+@click.option('--max-concurrent', type=click.IntRange(min=1, max=5), default=5, show_default=True,
+              help='Maximum number of connectors processed in parallel (capped at 5)')
+def activate_data_sources_batch(config_file, all_deactivated: bool, wait: bool, max_concurrent: int):
+    """Activate multiple alert data source connectors concurrently.
+
+    \b
+    Provide either --config (a file listing connector IDs, one per line) or
+    --all-deactivated (activates every connector currently in the deactivated state).
+
+    \b
+    Examples:
+      $ intezer-cli alerts-data-sources activate-batch --config connector-ids.txt
+      $ intezer-cli alerts-data-sources activate-batch --config - < connector-ids.txt --wait
+      $ intezer-cli alerts-data-sources activate-batch --all-deactivated --wait
+    """
+    if all_deactivated and config_file is not None:
+        click.echo('Error: --config and --all-deactivated are mutually exclusive', err=True)
+        raise click.Abort()
+    if not all_deactivated and config_file is None:
+        click.echo('Error: one of --config or --all-deactivated is required', err=True)
+        raise click.Abort()
+    try:
+        create_global_api()
+        connector_commands.reactivate_alert_data_sources_batch_command(
+            config_file=config_file,
+            all_deactivated=all_deactivated,
+            wait=wait,
+            max_concurrent=max_concurrent,
+        )
     except click.Abort:
         raise
     except click.ClickException:
