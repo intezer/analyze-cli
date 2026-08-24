@@ -5,6 +5,7 @@ from io import BytesIO
 from email.utils import parsedate_to_datetime
 
 import click
+import requests
 from intezer_sdk import api
 from intezer_sdk import consts as sdk_consts
 from intezer_sdk import errors as sdk_errors
@@ -309,6 +310,15 @@ def upload_offline_endpoint_scan(offline_scan_directory: str, force: bool = Fals
     except sdk_errors.IntezerError as e:
         click.echo(f'Analyze error: {e}')
         logger.exception('Failed to analyze offline scan')
+        raise
+    except requests.HTTPError as error:
+        click.echo(f'Upload failed: {error}')
+        logger.exception('Failed to upload offline scan')
+        raise
+    except FileNotFoundError as error:
+        click.echo(f'Missing scan file: {error.filename}. Make sure the path is the scan output directory '
+                   'created by the scanner (scan_<computername>_<date>_<time>)')
+        logger.exception('Failed to upload offline scan, scan file is missing')
         raise
     return endpoint_analysis.analysis_id
 

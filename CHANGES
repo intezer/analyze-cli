@@ -1,3 +1,7 @@
+1.16.1
+-----
+- Show the server's error reason and missing scan file details when an offline endpoint scan upload fails
+
 1.16.0
 -----
 - alerts-data-sources deactivate-batch: deactivate multiple alert data sources concurrently, either from a text file of connector IDs (`--config`) or every connector currently in `active`/`offline`/`update_failed` (`--all-active`)
