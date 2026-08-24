@@ -12,6 +12,7 @@ from unittest.mock import call
 from unittest.mock import patch
 
 import click.exceptions
+import requests
 import intezer_sdk.endpoint_analysis
 import intezer_sdk.base_analysis
 from intezer_sdk import errors as sdk_errors
@@ -127,6 +128,41 @@ class CommandEndpointAnalysisSpec(CliSpec):
             # Assert
             self.send_analyze_mock.assert_called_once()
             self.assertTrue(os.path.isfile(analysis_id_file_path))
+
+    def test_offline_scan_upload_echoes_server_error_when_http_error_is_raised(self):
+        # Arrange
+        create_global_api()
+        self.send_analyze_mock.side_effect = requests.HTTPError(
+            '409 Client Error: CONFLICT for url: https://analyze.intezer.com/scans, '
+            'server returns Windows scanner version 1.0.1.20 is not supported'
+        )
+        with tempfile.TemporaryDirectory() as root:
+            offline_scan_directory = self._create_temporary_directory_hierarchy(root)
+
+            # Act
+            with patch('intezer_analyze_cli.commands.click.echo') as echo_mock:
+                with self.assertRaises(requests.HTTPError):
+                    commands.upload_offline_endpoint_scan(offline_scan_directory)
+
+        # Assert
+        echoed_messages = ' '.join(str(echo_call.args[0]) for echo_call in echo_mock.call_args_list)
+        self.assertIn('Windows scanner version 1.0.1.20 is not supported', echoed_messages)
+
+    def test_offline_scan_upload_echoes_missing_file_when_scan_file_is_missing(self):
+        # Arrange
+        create_global_api()
+        self.send_analyze_mock.side_effect = FileNotFoundError(2, 'No such file or directory', 'scanner_info.json')
+        with tempfile.TemporaryDirectory() as root:
+            offline_scan_directory = self._create_temporary_directory_hierarchy(root)
+
+            # Act
+            with patch('intezer_analyze_cli.commands.click.echo') as echo_mock:
+                with self.assertRaises(FileNotFoundError):
+                    commands.upload_offline_endpoint_scan(offline_scan_directory)
+
+        # Assert
+        echoed_messages = ' '.join(str(echo_call.args[0]) for echo_call in echo_mock.call_args_list)
+        self.assertIn('scanner_info.json', echoed_messages)
 
     def test_offline_scan_do_not_upload_if_already_uploaded(self):
         # Arrange
